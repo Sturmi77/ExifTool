@@ -1,0 +1,9 @@
+# GUI: Tkinter is included in standard Python
+# Optional: for nicer date picker widget
+tkcalendar>=1.6.1
+
+# For GPS coordinate lookup (reverse geocoding)
+geopy>=2.4.0
+
+# Testing
+pytest>=7.0
