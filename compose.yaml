@@ -13,6 +13,10 @@
 # WICHTIG: STACK_DATA_DIR muss auf dem Host existieren, bevor der Stack startet!
 #   Synology:  mkdir -p /volume1/docker/exiftool-gui/data
 #   Linux:     mkdir -p /opt/docker/exiftool-gui/data
+# WICHTIG für Dockhand (matching paths):
+#   Der Stack-Pfad in Dockhand muss mit dem tatssächlichen Host-Pfad
+#   übereinstimmen. Empfohlen: /opt/dockhand/stacks/exiftool-gui/
+#   Dann liegt compose.yaml auch auf dem Host unter diesem Pfad.
 
 services:
   exiftool-gui:
@@ -39,6 +43,13 @@ services:
       #   Synology: mkdir -p /volume1/docker/exiftool-gui/data
       #   Linux:    mkdir -p /opt/docker/exiftool-gui/data
       - ${STACK_DATA_DIR:-/volume1/docker/exiftool-gui/data}:/home/exifuser/.config/exiftool-gui
+      # Wert in Dockhand via "Config Sets" oder .env setzen:
+      #   PHOTOS_DIR=/mnt/nas/fotos   oder   /home/user/Pictures
+      - ${PHOTOS_DIR:-/tmp/photos}:/photos:rw
+
+      # App-Konfiguration persistent halten
+      # Absoluter Pfad notwendig für Dockhand matching-paths Kompatibilität
+      - exiftool-config:/home/exifuser/.config/exiftool-gui
 
     networks:
       - exiftool-net
@@ -48,6 +59,14 @@ services:
       - "dockhand.description=EXIF date & GPS location editor GUI"
       - "dockhand.update.vulnerability-criteria=critical"
 
+    # Dockhand Labels für Stack-Metadaten und Update-Steuerung
+    labels:
+      - "dockhand.stack=exiftool-gui"
+      - "dockhand.description=EXIF date & GPS location editor GUI"
+      # Auto-Update-Strategie: nur updaten wenn keine kritischen Schwachstellen
+      - "dockhand.update.vulnerability-criteria=critical"
+
+    # Health check damit Dockhand den Container-Status korrekt anzeigt
     healthcheck:
       test: ["CMD", "python", "-c", "import tkinter"]
       interval: 60s
@@ -58,3 +77,13 @@ services:
 networks:
   exiftool-net:
     driver: bridge
+
+volumes:
+  exiftool-config:
+    driver: local
+    # Expliziter Host-Pfad für Dockhand matching-paths
+    # Pfad muss auf Host existieren: mkdir -p /opt/dockhand/stacks/exiftool-gui/data
+    driver_opts:
+      type: none
+      o: bind
+      device: ${STACK_DATA_DIR:-/opt/dockhand/stacks/exiftool-gui/data}
