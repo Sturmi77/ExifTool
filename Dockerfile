@@ -1,6 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────
 # ExifTool GUI — Docker Image
-# Base: python:3.12-slim + ExifTool + Tkinter via X11 forwarding
+# Base: python:3.12-slim + ExifTool + Tkinter via noVNC
+# User: exifuser mit UID 1026 = Michael auf Synology DS923+
 # ─────────────────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
@@ -8,11 +9,7 @@ LABEL maintainer="Sturmi77" \
       description="ExifTool GUI — EXIF date & location editor" \
       version="0.1.0"
 
-# System dependencies:
-#   exiftool        – Perl-based EXIF tool
-#   tk + python3-tk – Tkinter GUI
-#   libimage-exiftool-perl – ExifTool Perl library
-#   xauth, x11-apps – X11 forwarding support
+# System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libimage-exiftool-perl \
         python3-tk \
@@ -34,11 +31,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY src/ ./src/
 
-# Non-root user for security
-RUN useradd -m -u 1000 exifuser
+# UID 1026 = Michael auf Synology DS923+
+# Muss mit dem Host-User übereinstimmen damit Datei-Zugriff funktioniert.
+# Für andere Systeme: UID im Dockerfile oder via --user Flag anpassen.
+RUN useradd -m -u 1026 -g users exifuser
 USER exifuser
 
-# X11 display (overridable via env / docker-compose)
 ENV DISPLAY=:0
 
 CMD ["python", "src/main.py"]

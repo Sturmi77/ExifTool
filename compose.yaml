@@ -23,7 +23,6 @@ services:
       - DISPLAY_WIDTH=1280
       - DISPLAY_HEIGHT=800
       - RUN_XTERM=no
-      # Direkter Auto-Connect ohne manuelle Auswahl der HTML-Datei
       - VNC_PATH=vnc_auto.html
     ports:
       - "${NOVNC_PORT:-6080}:8080"
@@ -45,9 +44,8 @@ services:
 
     volumes:
       # Fotos-Verzeichnis vom Host (Pfad via Config Set setzen)
-      - ${PHOTOS_DIR:-/volume1/photos}:/photos:rw
+      - ${PHOTOS_DIR:-/volume1/homes/Michael}:/photos:rw
       # App-Konfiguration als named volume — Docker legt es automatisch an
-      # unter /volume1/@docker/volumes/exiftool_config/_data
       - exiftool_config:/home/exifuser/.config/exiftool-gui
 
     networks:
