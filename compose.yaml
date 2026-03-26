@@ -3,30 +3,46 @@
 # Deployment via Dockhand GitOps:
 #   1. Repo unter Settings > Git hinterlegen
 #   2. Stack erstellen > "From Git" > compose.yaml wird automatisch erkannt
-#   3. Variablen als "Config Set" in Dockhand hinterlegen (siehe .env.example)
+#   3. Variablen als "Config Set" hinterlegen (siehe .env.example)
 #   4. Optional: Webhook für Auto-Sync bei Push aktivieren
 #
-# X11-Voraussetzung auf dem Host (einmalig):
-#   xhost +local:docker
+# GUI-Zugriff via Browser (noVNC):
+#   http://<synology-ip>:6080
 #
-# STACK_DATA_DIR muss vor dem ersten Start existieren:
-#   Synology: mkdir -p /volume1/docker/exiftool-gui/data
-#   Linux:    mkdir -p /opt/docker/exiftool-gui/data
+# STACK_DATA_DIR und PHOTOS_DIR müssen auf dem Host existieren:
+#   mkdir -p /volume1/docker/exiftool-gui/data
 
 services:
+
+  # noVNC: virtueller X11-Display, GUI im Browser erreichbar (headless)
+  novnc:
+    image: theasp/novnc:latest
+    container_name: exiftool-novnc
+    restart: unless-stopped
+    environment:
+      - DISPLAY_WIDTH=1280
+      - DISPLAY_HEIGHT=800
+      - RUN_XTERM=no
+    ports:
+      - "${NOVNC_PORT:-6080}:8080"
+    networks:
+      - exiftool-net
+
   exiftool-gui:
     image: sturmi77/exiftool-gui:latest
     build:
       context: .
       dockerfile: Dockerfile
     container_name: exiftool-gui
-    restart: "no"
+    restart: unless-stopped
+    depends_on:
+      - novnc
 
     environment:
-      - DISPLAY=${DISPLAY:-:0}
+      # DISPLAY zeigt auf den noVNC-Container (kein lokaler X11 nötig)
+      - DISPLAY=novnc:0
 
     volumes:
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${PHOTOS_DIR:-/volume1/photos}:/photos:rw
       - ${STACK_DATA_DIR:-/volume1/docker/exiftool-gui/data}:/home/exifuser/.config/exiftool-gui
 
@@ -43,7 +59,7 @@ services:
       interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 20s
 
 networks:
   exiftool-net:
