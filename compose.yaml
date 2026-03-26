@@ -6,12 +6,11 @@
 #   3. Variablen als "Config Set" hinterlegen (siehe .env.example)
 #   4. Optional: Webhook für Auto-Sync bei Push aktivieren
 #
-# GUI-Zugriff via Browser (noVNC):
-#   http://<synology-ip>:6080
+# GUI-Zugriff via Browser (direkt, automatische Verbindung):
+#   http://<synology-ip>:6080/vnc_auto.html
 #
 # Kein manuelles Anlegen von Verzeichnissen nötig —
 # Docker verwaltet das Config-Volume automatisch.
-# Fotos-Pfad muss existieren: PHOTOS_DIR im Config Set setzen.
 
 services:
 
@@ -24,6 +23,8 @@ services:
       - DISPLAY_WIDTH=1280
       - DISPLAY_HEIGHT=800
       - RUN_XTERM=no
+      # Direkter Auto-Connect ohne manuelle Auswahl der HTML-Datei
+      - VNC_PATH=vnc_auto.html
     ports:
       - "${NOVNC_PORT:-6080}:8080"
     networks:
@@ -47,7 +48,6 @@ services:
       - ${PHOTOS_DIR:-/volume1/photos}:/photos:rw
       # App-Konfiguration als named volume — Docker legt es automatisch an
       # unter /volume1/@docker/volumes/exiftool_config/_data
-      # Kein manuelles mkdir nötig!
       - exiftool_config:/home/exifuser/.config/exiftool-gui
 
     networks:
@@ -70,6 +70,5 @@ networks:
     driver: bridge
 
 # Named volume — wird von Docker automatisch erstellt und verwaltet.
-# Kein driver_opts, kein bind, keine Pfad-Probleme auf Synology.
 volumes:
   exiftool_config:
