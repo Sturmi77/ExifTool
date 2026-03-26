@@ -1,0 +1,5 @@
+# VERALTET — bitte compose.yaml verwenden!
+# Diese Datei bleibt für Rückwärtskompatibilität mit älteren Docker Compose Versionen.
+# Dockhand bevorzugt automatisch compose.yaml (Compose Spec Standard).
+
+# Siehe compose.yaml für die aktuelle, Dockhand-optimierte Konfiguration.
