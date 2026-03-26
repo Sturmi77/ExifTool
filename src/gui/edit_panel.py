@@ -8,6 +8,12 @@ try:
 except ImportError:
     MAP_AVAILABLE = False
 
+try:
+    from .date_picker import DateTimePickerDialog
+    DATE_PICKER_AVAILABLE = True
+except ImportError:
+    DATE_PICKER_AVAILABLE = False
+
 
 class EditPanel(ttk.LabelFrame):
     def __init__(self, parent, exiftool, file_listbox):
@@ -23,8 +29,20 @@ class EditPanel(ttk.LabelFrame):
 
         ttk.Label(date_frame, text="Datum & Zeit:").pack(side=tk.LEFT)
         self._date_var = tk.StringVar(value=datetime.now().strftime("%Y:%m:%d %H:%M:%S"))
-        ttk.Entry(date_frame, textvariable=self._date_var, width=22).pack(side=tk.LEFT, padx=5)
-        ttk.Label(date_frame, text="(Format: YYYY:MM:DD HH:MM:SS)", foreground="gray").pack(side=tk.LEFT)
+
+        # Date entry (always editable directly)
+        date_entry = ttk.Entry(date_frame, textvariable=self._date_var, width=22)
+        date_entry.pack(side=tk.LEFT, padx=5)
+
+        # Calendar picker button
+        ttk.Button(
+            date_frame,
+            text="📅 Kalender",
+            command=self._open_date_picker
+        ).pack(side=tk.LEFT, padx=(0, 6))
+
+        ttk.Label(date_frame, text="(Format: YYYY:MM:DD HH:MM:SS)",
+                  foreground="gray").pack(side=tk.LEFT)
 
         # --- GPS row ---
         gps_frame = ttk.Frame(self)
@@ -38,7 +56,6 @@ class EditPanel(ttk.LabelFrame):
         self._lon_var = tk.StringVar()
         ttk.Entry(gps_frame, textvariable=self._lon_var, width=14).pack(side=tk.LEFT, padx=5)
 
-        # Map picker button
         if MAP_AVAILABLE:
             ttk.Button(
                 gps_frame,
@@ -52,24 +69,40 @@ class EditPanel(ttk.LabelFrame):
                 foreground="gray"
             ).pack(side=tk.LEFT, padx=5)
 
-        ttk.Label(gps_frame, text="(z.B. 48.4010, 16.1680)", foreground="gray").pack(side=tk.LEFT, padx=8)
+        ttk.Label(gps_frame, text="(z.B. 48.4010, 16.1680)",
+                  foreground="gray").pack(side=tk.LEFT, padx=8)
 
-        # --- Buttons ---
+        # --- Apply buttons ---
         btn_frame = ttk.Frame(self)
         btn_frame.pack(fill=tk.X, padx=5, pady=(5, 8))
 
-        ttk.Button(btn_frame, text="Auf Auswahl anwenden", command=self._apply_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(btn_frame, text="Auf alle Dateien anwenden", command=self._apply_all).pack(side=tk.LEFT)
+        ttk.Button(btn_frame, text="Auf Auswahl anwenden",
+                   command=self._apply_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(btn_frame, text="Auf alle Dateien anwenden",
+                   command=self._apply_all).pack(side=tk.LEFT)
         ttk.Label(
             btn_frame,
             text="  ⚠ Originale werden automatisch gesichert (_original)",
             foreground="gray"
         ).pack(side=tk.LEFT, padx=10)
 
+    # ------------------------------------------------------------------ #
+
+    def _open_date_picker(self):
+        """Open the date/time picker dialog."""
+        DateTimePickerDialog(
+            self,
+            on_confirm=self._on_date_selected,
+            initial=self._date_var.get()
+        )
+
+    def _on_date_selected(self, exif_date: str):
+        """Callback: receives confirmed EXIF date string."""
+        self._date_var.set(exif_date)
+
     def _open_map_picker(self):
-        """Open the map picker dialog and receive selected coordinates."""
-        initial_lat = None
-        initial_lon = None
+        """Open the map picker dialog."""
+        initial_lat = initial_lon = None
         try:
             if self._lat_var.get():
                 initial_lat = float(self._lat_var.get())
@@ -77,7 +110,6 @@ class EditPanel(ttk.LabelFrame):
                 initial_lon = float(self._lon_var.get())
         except ValueError:
             pass
-
         MapPickerDialog(
             self,
             on_confirm=self._on_coords_selected,
@@ -86,7 +118,6 @@ class EditPanel(ttk.LabelFrame):
         )
 
     def _on_coords_selected(self, lat: float, lon: float):
-        """Callback: receives confirmed coordinates from MapPickerDialog."""
         self._lat_var.set(f"{lat:.6f}")
         self._lon_var.set(f"{lon:.6f}")
 
@@ -105,7 +136,8 @@ class EditPanel(ttk.LabelFrame):
         lat = self._lat_var.get().strip() or None
         lon = self._lon_var.get().strip() or None
         if not date and not lat and not lon:
-            messagebox.showwarning("Keine Änderungen", "Bitte Datum oder GPS-Koordinaten eingeben.")
+            messagebox.showwarning("Keine Änderungen",
+                                   "Bitte Datum oder GPS-Koordinaten eingeben.")
             return
         try:
             self.exiftool.write_metadata(files, date=date, lat=lat, lon=lon)
