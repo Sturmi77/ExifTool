@@ -10,6 +10,9 @@
 # X11-Voraussetzung auf dem Host (einmalig):
 #   xhost +local:docker
 #
+# WICHTIG: STACK_DATA_DIR muss auf dem Host existieren, bevor der Stack startet!
+#   Synology:  mkdir -p /volume1/docker/exiftool-gui/data
+#   Linux:     mkdir -p /opt/docker/exiftool-gui/data
 # WICHTIG für Dockhand (matching paths):
 #   Der Stack-Pfad in Dockhand muss mit dem tatssächlichen Host-Pfad
 #   übereinstimmen. Empfohlen: /opt/dockhand/stacks/exiftool-gui/
@@ -32,6 +35,14 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
 
       # Foto-Verzeichnis vom Host einbinden
+      # Wert in Dockhand via "Config Sets" oder .env setzen
+      - ${PHOTOS_DIR:-/tmp/photos}:/photos:rw
+
+      # App-Konfiguration persistent halten
+      # Verzeichnis MUSS vor dem ersten Start auf dem Host existieren:
+      #   Synology: mkdir -p /volume1/docker/exiftool-gui/data
+      #   Linux:    mkdir -p /opt/docker/exiftool-gui/data
+      - ${STACK_DATA_DIR:-/volume1/docker/exiftool-gui/data}:/home/exifuser/.config/exiftool-gui
       # Wert in Dockhand via "Config Sets" oder .env setzen:
       #   PHOTOS_DIR=/mnt/nas/fotos   oder   /home/user/Pictures
       - ${PHOTOS_DIR:-/tmp/photos}:/photos:rw
@@ -42,6 +53,11 @@ services:
 
     networks:
       - exiftool-net
+
+    labels:
+      - "dockhand.stack=exiftool-gui"
+      - "dockhand.description=EXIF date & GPS location editor GUI"
+      - "dockhand.update.vulnerability-criteria=critical"
 
     # Dockhand Labels für Stack-Metadaten und Update-Steuerung
     labels:
