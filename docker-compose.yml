@@ -1,0 +1,35 @@
+# ExifTool GUI — Docker Compose for deployment via Dockge / Dockhand
+# Requires X11 display forwarding (Linux host or XQuartz on macOS)
+#
+# Usage:
+#   docker compose up
+#   docker compose up --build   # rebuild image
+
+services:
+  exiftool-gui:
+    image: sturmi77/exiftool-gui:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: exiftool-gui
+    restart: "no"          # GUI app – do not auto-restart
+
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+
+    volumes:
+      # X11 socket for GUI display on Linux
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # Mount host photos folder into container (adjust path as needed)
+      - ${PHOTOS_DIR:-~/Pictures}:/photos:rw
+      # Optional: persist app config/cache
+      - exiftool-config:/home/exifuser/.config/exiftool-gui
+
+    network_mode: host       # Required for X11 on some setups
+
+    # xhost + must be run on host once before starting:
+    # xhost +local:docker
+
+volumes:
+  exiftool-config:
+    driver: local
