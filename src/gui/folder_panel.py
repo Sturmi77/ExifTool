@@ -6,15 +6,11 @@ from typing import Callable, Optional
 
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".heic", ".raw", ".cr2", ".nef", ".arw", ".dng", ".orf", ".rw2"}
 
+# Standard-Startverzeichnis im Container (gemounteter Host-Ordner)
+DEFAULT_PHOTOS_DIR = "/photos"
+
 
 class FolderPanel(ttk.LabelFrame):
-    """
-    Top bar offering two ways to load images:
-      1. Select a whole folder  → scans recursively (optional)
-      2. Select individual files
-    Exposes `on_files_changed` callback with the list of resolved file paths.
-    """
-
     def __init__(self, parent):
         super().__init__(parent, text="Dateien laden")
         self.on_files_changed: Optional[Callable[[list[str]], None]] = None
@@ -28,10 +24,15 @@ class FolderPanel(ttk.LabelFrame):
 
         ttk.Label(row1, text="Ordner:").pack(side=tk.LEFT)
         self._folder_var = tk.StringVar()
-        ttk.Entry(row1, textvariable=self._folder_var, state="readonly", width=55).pack(
+        ttk.Entry(row1, textvariable=self._folder_var, state="readonly", width=45).pack(
             side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        ttk.Button(row1, text="📁 Ordner wählen", command=self._browse_folder).pack(side=tk.LEFT, padx=(0, 4))
-        ttk.Checkbutton(row1, text="Unterordner einbeziehen",
+
+        # Schnell-Laden: direkt /photos öffnen ohne Dialog
+        ttk.Button(row1, text="📂 Fotos-Ordner",
+                   command=self._load_default_dir).pack(side=tk.LEFT, padx=(0, 2))
+        ttk.Button(row1, text="📁 Ordner wählen",
+                   command=self._browse_folder).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Checkbutton(row1, text="Unterordner",
                         variable=self._recursive_var).pack(side=tk.LEFT, padx=(4, 0))
 
         # Row 2: single/multiple file selection
@@ -42,13 +43,34 @@ class FolderPanel(ttk.LabelFrame):
         self._files_label_var = tk.StringVar(value="— keine Dateien ausgewählt —")
         ttk.Label(row2, textvariable=self._files_label_var,
                   foreground="gray", anchor=tk.W).pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
-        ttk.Button(row2, text="🖼 Dateien wählen", command=self._browse_files).pack(side=tk.LEFT, padx=(0, 4))
-        ttk.Button(row2, text="✖ Liste leeren", command=self._clear).pack(side=tk.LEFT)
+        ttk.Button(row2, text="🖼 Dateien wählen",
+                   command=self._browse_files).pack(side=tk.LEFT, padx=(0, 4))
+        ttk.Button(row2, text="✖ Liste leeren",
+                   command=self._clear).pack(side=tk.LEFT)
 
     # ------------------------------------------------------------------ #
 
+    def _load_default_dir(self):
+        """Direkt /photos laden ohne Dialog — schnellster Weg im Container."""
+        folder = DEFAULT_PHOTOS_DIR
+        if not os.path.isdir(folder):
+            tk.messagebox.showwarning(
+                "Ordner nicht gefunden",
+                f"'{folder}' existiert nicht.\nBitte PHOTOS_DIR im Config Set prüfen."
+            )
+            return
+        self._folder_var.set(folder)
+        files = self._scan_folder(folder, recursive=self._recursive_var.get())
+        self._files_label_var.set(f"{len(files)} Bild(er) aus Fotos-Ordner geladen")
+        self._notify(files)
+
     def _browse_folder(self):
-        folder = filedialog.askdirectory(title="Ordner mit Fotos auswählen")
+        """Ordner-Dialog — startet immer bei /photos."""
+        start = DEFAULT_PHOTOS_DIR if os.path.isdir(DEFAULT_PHOTOS_DIR) else "/"
+        folder = filedialog.askdirectory(
+            title="Ordner mit Fotos auswählen",
+            initialdir=start
+        )
         if not folder:
             return
         self._folder_var.set(folder)
@@ -57,8 +79,11 @@ class FolderPanel(ttk.LabelFrame):
         self._notify(files)
 
     def _browse_files(self):
+        """Datei-Dialog — startet immer bei /photos."""
+        start = DEFAULT_PHOTOS_DIR if os.path.isdir(DEFAULT_PHOTOS_DIR) else "/"
         paths = filedialog.askopenfilenames(
             title="Einzelne Fotos auswählen",
+            initialdir=start,
             filetypes=[
                 ("Bilddateien", " ".join(f"*{ext}" for ext in IMAGE_EXTENSIONS)),
                 ("Alle Dateien", "*.*"),
