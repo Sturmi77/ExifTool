@@ -6,15 +6,11 @@
 #   3. Variablen als "Config Set" hinterlegen (siehe .env.example)
 #   4. Optional: Webhook für Auto-Sync bei Push aktivieren
 #
-# GUI-Zugriff via Browser (direkt, automatische Verbindung):
+# GUI-Zugriff via Browser:
 #   http://<synology-ip>:6080/vnc_auto.html
-#
-# Kein manuelles Anlegen von Verzeichnissen nötig —
-# Docker verwaltet das Config-Volume automatisch.
 
 services:
 
-  # noVNC: virtueller X11-Display, GUI im Browser erreichbar (headless)
   novnc:
     image: theasp/novnc:latest
     container_name: exiftool-novnc
@@ -42,11 +38,20 @@ services:
     environment:
       - DISPLAY=novnc:0
 
+    # Automatisch neuen Code pullen und App starten
+    # git pull holt Änderungen aus GitHub bevor die App startet
+    command: >-
+      bash -c "cd /app &&
+               git config --global --add safe.directory /app &&
+               git pull --ff-only origin main 2>/dev/null || true &&
+               sleep 2 &&
+               python src/main.py"
+
     volumes:
-      # Fotos-Verzeichnis vom Host (Pfad via Config Set setzen)
       - ${PHOTOS_DIR:-/volume1/homes/Michael}:/photos:rw
-      # App-Konfiguration als named volume — Docker legt es automatisch an
       - exiftool_config:/home/exifuser/.config/exiftool-gui
+      # Git-Repo einbinden damit git pull im Container funktioniert
+      - .:/app:rw
 
     networks:
       - exiftool-net
@@ -61,12 +66,11 @@ services:
       interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 25s
 
 networks:
   exiftool-net:
     driver: bridge
 
-# Named volume — wird von Docker automatisch erstellt und verwaltet.
 volumes:
   exiftool_config:
