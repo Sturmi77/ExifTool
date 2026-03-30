@@ -1,4 +1,4 @@
-# ExifTool GUI — Dockhand-optimized Compose Stack
+# ExifTool GUI — Dockhand-optimized Compose Stack (Web UI Version)
 #
 # Deployment via Dockhand GitOps:
 #   1. Repo unter Settings > Git hinterlegen
@@ -6,24 +6,10 @@
 #   3. Variablen als "Config Set" hinterlegen (siehe .env.example)
 #   4. Optional: Webhook für Auto-Sync bei Push aktivieren
 #
-# GUI-Zugriff via Browser (noVNC, Auto-Connect):
-#   http://<synology-ip>:6080/vnc_auto.html
+# GUI-Zugriff via Browser (FastAPI Web UI):
+#   http://<synology-ip>:6080/
 
 services:
-
-  novnc:
-    image: theasp/novnc:latest
-    container_name: exiftool-novnc
-    restart: unless-stopped
-    environment:
-      - DISPLAY_WIDTH=1280
-      - DISPLAY_HEIGHT=800
-      - RUN_XTERM=no
-      - VNC_PATH=vnc_auto.html
-    ports:
-      - "${NOVNC_PORT:-6080}:8080"
-    networks:
-      - exiftool-net
 
   exiftool-gui:
     image: sturmi77/exiftool-gui:latest
@@ -32,38 +18,33 @@ services:
       dockerfile: Dockerfile
     container_name: exiftool-gui
     restart: unless-stopped
-    depends_on:
-      - novnc
 
     environment:
-      # DISPLAY zeigt auf noVNC-Container
-      - DISPLAY=novnc:0
+      # Basisverzeichnis im Container, in dem die Fotos liegen
+      - PHOTOS_DIR=/photos
 
-    # Wichtige Volumes:
-    #   /photos       → Host-Foto-Ordner (PHOTOS_DIR)
-    #   exiftool_config → interne App-Konfiguration (named volume)
+    ports:
+      # Host-Port → Container-Port 8000 (FastAPI)
+      - "${WEB_PORT:-6080}:8000"
+
     volumes:
+      # Fotos-Verzeichnis vom Host (Pfad via Config Set setzen)
       - ${PHOTOS_DIR:-/volume1/homes/Michael}:/photos:rw
+      # App-Konfiguration als named volume — optional für spätere Features
       - exiftool_config:/home/exifuser/.config/exiftool-gui
-
-    networks:
-      - exiftool-net
 
     labels:
       - "dockhand.stack=exiftool-gui"
-      - "dockhand.description=EXIF date & GPS location editor GUI"
+      - "dockhand.description=EXIF date & location editor (Web UI)"
       - "dockhand.update.vulnerability-criteria=critical"
 
     healthcheck:
-      test: ["CMD", "python", "-c", "import tkinter"]
+      # Einfache Healthcheck-Variante: prüft ob Python und FastAPI importierbar sind
+      test: ["CMD", "python", "-c", "import fastapi"]
       interval: 60s
       timeout: 10s
       retries: 3
       start_period: 25s
-
-networks:
-  exiftool-net:
-    driver: bridge
 
 volumes:
   exiftool_config:
