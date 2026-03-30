@@ -1,13 +1,13 @@
 # ─────────────────────────────────────────────────────────────────────
 # ExifTool GUI — Docker Image
-# Base: python:3.12-slim + ExifTool + Tkinter via noVNC
-# User: exifuser mit UID 1026 = Michael auf Synology DS923+
+# Now serves a FastAPI-based web UI instead of a Tkinter desktop via noVNC.
+# Base: python:3.12-slim + ExifTool CLI + FastAPI + Uvicorn
 # ─────────────────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 LABEL maintainer="Sturmi77" \
-      description="ExifTool GUI — EXIF date & location editor" \
-      version="0.1.0"
+      description="ExifTool GUI — EXIF date & location editor (web UI)" \
+      version="0.2.0"
 
 # System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -28,15 +28,16 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application source
+# Copy application source (core logic + GUI modules)
 COPY src/ ./src/
+COPY templates ./templates
+COPY static ./static
 
 # UID 1026 = Michael auf Synology DS923+
-# Muss mit dem Host-User übereinstimmen damit Datei-Zugriff funktioniert.
-# Für andere Systeme: UID im Dockerfile oder via --user Flag anpassen.
 RUN useradd -m -u 1026 -g users exifuser
 USER exifuser
 
-ENV DISPLAY=:0
+# FastAPI app entrypoint
+ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "src/main.py"]
+CMD ["uvicorn", "src.web.main:app", "--host", "0.0.0.0", "--port", "8000"]
