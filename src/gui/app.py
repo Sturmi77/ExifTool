@@ -15,6 +15,10 @@ class App(tk.Tk):
         self.minsize(900, 600)
         self.resizable(True, True)
 
+        # Grid-basiertes Layout: mittlerer Bereich wächst, unterer Edit-Block bleibt sichtbar
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)  # middle frame dehnt sich, nicht der Edit-Block
+
         self.exiftool = ExifToolWrapper()
         self._check_exiftool()
         self._build_ui()
@@ -31,16 +35,18 @@ class App(tk.Tk):
     def _build_ui(self):
         # ── Top: folder/file selection ──────────────────────────────────
         self.folder_panel = FolderPanel(self)
-        self.folder_panel.pack(fill=tk.X, padx=10, pady=(10, 0))
+        self.folder_panel.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 0))
         self.folder_panel.on_files_changed = self._on_files_changed
 
-        ttk.Separator(self, orient="horizontal").pack(fill=tk.X, padx=10, pady=6)
+        ttk.Separator(self, orient="horizontal").grid(
+            row=1, column=0, sticky="ew", padx=10, pady=6
+        )
 
         # ── Middle: horizontal split (file list | EXIF preview) ─────────
         middle = ttk.Frame(self)
-        middle.pack(fill=tk.BOTH, expand=True, padx=10)
+        middle.grid(row=2, column=0, sticky="nsew", padx=10)
 
-        # Left: file list
+        # Links: Dateiliste
         list_frame = ttk.LabelFrame(middle, text="Dateien")
         list_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -57,23 +63,29 @@ class App(tk.Tk):
         sb_x.pack(side=tk.BOTTOM, fill=tk.X)
         self.file_listbox.pack(fill=tk.BOTH, expand=True)
 
-        # Selection info label
+        # Auswahl-Info
         self._sel_info_var = tk.StringVar(value="")
-        ttk.Label(list_frame, textvariable=self._sel_info_var,
-                  foreground="gray", font=("Segoe UI", 8)).pack(anchor=tk.W, padx=4, pady=2)
+        ttk.Label(
+            list_frame,
+            textvariable=self._sel_info_var,
+            foreground="gray",
+            font=("Segoe UI", 8),
+        ).pack(anchor=tk.W, padx=4, pady=2)
 
         # Bind selection change → update EXIF preview
         self.file_listbox.bind("<<ListboxSelect>>", self._on_file_select)
 
-        # Right: EXIF preview panel (fixed width)
+        # Rechts: EXIF-Vorschau (feste Breite)
         self.exif_preview = ExifPreviewPanel(middle, self.exiftool)
         self.exif_preview.pack(side=tk.RIGHT, fill=tk.Y, padx=(8, 0))
         self.exif_preview.config(width=240)
 
         # ── Bottom: edit panel ──────────────────────────────────────────
-        ttk.Separator(self, orient="horizontal").pack(fill=tk.X, padx=10, pady=6)
+        ttk.Separator(self, orient="horizontal").grid(
+            row=3, column=0, sticky="ew", padx=10, pady=6
+        )
         self.edit_panel = EditPanel(self, self.exiftool, self.file_listbox)
-        self.edit_panel.pack(fill=tk.X, padx=10, pady=(0, 10))
+        self.edit_panel.grid(row=4, column=0, sticky="ew", padx=10, pady=(0, 10))
 
     # ------------------------------------------------------------------ #
 
