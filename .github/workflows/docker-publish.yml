@@ -1,0 +1,52 @@
+name: Build & Push Docker Image
+
+# Wird ausgelöst bei:
+#   - Push auf main (neues Release)
+#   - Manuell via GitHub Actions Tab
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: sturmi77/exiftool-gui
+          tags: |
+            # latest immer bei Push auf main
+            type=raw,value=latest
+            # Zusaetzlich SHA-Tag fuer Rollback
+            type=sha,prefix=sha-
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Layer-Cache fuer schnellere Builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # Plattformen: amd64 fuer Synology DS923+ (x86)
+          platforms: linux/amd64
