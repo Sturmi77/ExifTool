@@ -2,11 +2,11 @@
 #
 # Deployment via Dockhand GitOps:
 #   1. Repo unter Settings > Git hinterlegen
-#   2. Stack erstellen > "From Git" > compose.yaml wird automatisch erkannt
+#   2. Stack erstellen > "From Git" → compose.yaml wird automatisch erkannt
 #   3. Variablen als "Config Set" hinterlegen (siehe .env.example)
 #   4. Optional: Webhook für Auto-Sync bei Push aktivieren
 #
-# GUI-Zugriff via Browser:
+# GUI-Zugriff via Browser (noVNC, Auto-Connect):
 #   http://<synology-ip>:6080/vnc_auto.html
 
 services:
@@ -36,22 +36,15 @@ services:
       - novnc
 
     environment:
+      # DISPLAY zeigt auf noVNC-Container
       - DISPLAY=novnc:0
 
-    # Automatisch neuen Code pullen und App starten
-    # git pull holt Änderungen aus GitHub bevor die App startet
-    command: >-
-      bash -c "cd /app &&
-               git config --global --add safe.directory /app &&
-               git pull --ff-only origin main 2>/dev/null || true &&
-               sleep 2 &&
-               python src/main.py"
-
+    # Wichtige Volumes:
+    #   /photos       → Host-Foto-Ordner (PHOTOS_DIR)
+    #   exiftool_config → interne App-Konfiguration (named volume)
     volumes:
       - ${PHOTOS_DIR:-/volume1/homes/Michael}:/photos:rw
       - exiftool_config:/home/exifuser/.config/exiftool-gui
-      # Git-Repo einbinden damit git pull im Container funktioniert
-      - .:/app:rw
 
     networks:
       - exiftool-net
