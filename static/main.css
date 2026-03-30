@@ -1,0 +1,162 @@
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  background: #f5f7fb;
+  color: #222;
+}
+
+header {
+  padding: 1rem 1.5rem 0.5rem;
+}
+
+h1 {
+  margin: 0;
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+  color: #555;
+}
+
+.top-bar {
+  padding: 0.5rem 1.5rem 0.5rem;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+
+.top-bar form label {
+  font-weight: 500;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.message {
+  margin: 0.5rem 1.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #e6f4ea;
+  border: 1px solid #a8d5b8;
+  border-radius: 4px;
+  color: #245c35;
+  font-size: 0.9rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 2.2fr 1.1fr;
+  gap: 1rem;
+  padding: 1rem 1.5rem 1.5rem;
+}
+
+.files, .preview {
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.75rem 1rem 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.file-table th,
+.file-table td {
+  border-bottom: 1px solid #eee;
+  padding: 0.25rem 0.5rem;
+}
+
+.file-row.selected {
+  background: #eef3ff;
+}
+
+.link-button {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  color: #0b63ce;
+  cursor: pointer;
+  text-align: left;
+}
+
+.link-button:hover {
+  text-decoration: underline;
+}
+
+.edit-panel {
+  margin-top: 1rem;
+  border-top: 1px solid #eee;
+  padding-top: 0.75rem;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.field-row label {
+  font-weight: 500;
+}
+
+#map {
+  margin-top: 0.5rem;
+  height: 260px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+.actions {
+  margin-top: 0.75rem;
+}
+
+button {
+  border-radius: 4px;
+  border: 1px solid #0b63ce;
+  background: #0b63ce;
+  color: white;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #094f9f;
+}
+
+.preview .thumb {
+  max-width: 100%;
+  max-height: 220px;
+  display: block;
+  margin: 0.25rem auto 0.5rem;
+  object-fit: contain;
+}
+
+.meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.meta-table th,
+.meta-table td {
+  border-bottom: 1px solid #eee;
+  padding: 0.15rem 0.25rem;
+}
+
+.meta-table th {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.error {
+  color: #b3261e;
+  font-size: 0.9rem;
+}
