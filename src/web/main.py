@@ -114,6 +114,16 @@ async def index(
 
   rel_files = [f.name for f in files]
 
+  current_index = 0
+  prev_file = None
+  next_file = None
+  if rel_files and preview_file and preview_file.name in rel_files:
+    current_index = rel_files.index(preview_file.name)
+    if current_index > 0:
+      prev_file = rel_files[current_index - 1]
+    if current_index < len(rel_files) - 1:
+      next_file = rel_files[current_index + 1]
+
   return templates.TemplateResponse(
     request=request,
     name="index.html",
@@ -128,6 +138,8 @@ async def index(
       "selected": preview_file.name if preview_file else "",
       "preview_file": preview_file.name if preview_file else "",
       "preview_meta": preview_meta or {},
+      "prev_file": prev_file,
+      "next_file": next_file,
       "message": msg,
     },
   )
