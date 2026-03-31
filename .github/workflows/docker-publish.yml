@@ -1,12 +1,8 @@
 name: Build & Push Docker Image
 
-# Wird ausgelöst bei:
-#   - Push auf main (neues Release)
-#   - Manuell via GitHub Actions Tab
+# Deaktiviert automatischen Build/Push bei jedem Commit.
+# Workflow kann weiterhin manuell im GitHub Actions Tab gestartet werden.
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -32,9 +28,9 @@ jobs:
         with:
           images: sturmi77/exiftool-gui
           tags: |
-            # latest immer bei Push auf main
+            # latest bei manuellem Run
             type=raw,value=latest
-            # Zusaetzlich SHA-Tag fuer Rollback
+            # Zusätzlich SHA-Tag für Rollback
             type=sha,prefix=sha-
 
       - name: Build and Push Image
@@ -45,8 +41,6 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Layer-Cache fuer schnellere Builds
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          # Plattformen: amd64 fuer Synology DS923+ (x86)
           platforms: linux/amd64
