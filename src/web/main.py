@@ -74,9 +74,9 @@ async def index(request: Request, subdir: str = "", selected: Optional[str] = No
     rel_files = [f.name for f in files]
 
     return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
+        request=request,
+        name="index.html",
+        context={
             "base_dir": str(base),
             "subdir": subdir,
             "folder": str(folder),
