@@ -2,65 +2,95 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <title>ExifTool GUI – Web</title>
+  <title>ExifTool GUI - Web</title>
   <link rel="stylesheet" href="/static/main.css" />
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="/static/main.js" defer></script>
+  <style>
+    .breadcrumb { font-size:.85rem; margin-bottom:.5rem; }
+    .breadcrumb a { color:var(--accent,#0078d7); cursor:pointer; text-decoration:underline; }
+    .breadcrumb span { color:#555; }
+    .breadcrumb .sep { margin:0 .3rem; color:#aaa; }
+    .dir-list { list-style:none; padding:0; margin:0 0 .75rem; }
+    .dir-list li { display:flex; align-items:center; gap:.4rem; padding:.2rem 0; }
+    .dir-list li a { cursor:pointer; color:var(--accent,#0078d7); text-decoration:none; font-weight:500; }
+    .dir-list li a:hover { text-decoration:underline; }
+    .up-link { margin-bottom:.5rem; }
+    .up-link a { cursor:pointer; color:#666; font-size:.9rem; text-decoration:none; }
+    .up-link a:hover { text-decoration:underline; }
+    .select-all-row { margin-bottom:.5rem; }
+  </style>
 </head>
 <body>
   <header>
-    <h1>ExifTool GUI – Web</h1>
-    <p class="subtitle">EXIF Datum & GPS bearbeiten für Fotos unter <code>{{ base_dir }}</code></p>
+    <h1>ExifTool GUI - Web</h1>
+    <p class="subtitle">EXIF Datum &amp; GPS bearbeiten &middot; Basis: <code>{{ base_dir }}</code></p>
   </header>
 
   {% if message %}
     <div class="message">{{ message }}</div>
   {% endif %}
 
-  <section class="top-bar">
-    <form method="get" action="/">
-      <label>Unterordner relativ zu <code>{{ base_dir }}</code>:
-        <input type="text" name="subdir" value="{{ subdir }}" size="40" />
-      </label>
-      <button type="submit">Ordner laden</button>
-    </form>
-    <p class="hint">Beispiel: <code>Urlaub/2024</code>. Leerlassen für Basisordner.</p>
-  </section>
-
   <main class="layout">
     <section class="files">
-      <h2>Dateien im Ordner</h2>
-      <p><strong>Ordner:</strong> {{ folder }}</p>
+
+      <!-- Breadcrumb -->
+      <nav class="breadcrumb">
+        {% for crumb in breadcrumb %}
+          {% if not loop.last %}
+            <a onclick="navigate('{{ crumb.path }}')">{{ crumb.label }}</a>
+            <span class="sep">&#x203a;</span>
+          {% else %}
+            <span>{{ crumb.label }}</span>
+          {% endif %}
+        {% endfor %}
+      </nav>
+
+      <!-- Up link -->
+      {% if parent_subdir is not none %}
+        <p class="up-link">
+          <a onclick="navigate('{{ parent_subdir }}')">&#x2B06; Eine Ebene hoch</a>
+        </p>
+      {% endif %}
+
+      <!-- Unterordner -->
+      {% if subdirs %}
+        <h3>Unterordner</h3>
+        <ul class="dir-list">
+          {% for d in subdirs %}
+            {% set child_path = (subdir + '/' + d) if subdir else d %}
+            <li>
+              <span>&#x1F4C1;</span>
+              <a onclick="navigate('{{ child_path }}')">{{ d }}</a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      <!-- Dateien -->
       {% if files %}
+        <h3>Dateien ({{ files|length }})</h3>
         <form method="post" action="/apply" id="apply-form">
-          <input type="hidden" name="subdir" value="{{ subdir }}" />
+          <input type="hidden" name="subdir" value="{{ subdir }}" id="hidden-subdir" />
+
+          <div class="select-all-row">
+            <label><input type="checkbox" id="select-all" /> Alle auswaehlen</label>
+          </div>
+
           <table class="file-table">
-            <thead>
-              <tr>
-                <th>Auswahl</th>
-                <th>Datei</th>
-              </tr>
-            </thead>
+            <thead><tr><th>&#x2714;</th><th>Dateiname</th></tr></thead>
             <tbody>
               {% for f in files %}
                 <tr class="file-row {% if f == selected %}selected{% endif %}">
+                  <td><input type="checkbox" name="selected_files" value="{{ f }}"
+                    {% if f == selected %}checked{% endif %} /></td>
                   <td>
-                    <input type="checkbox" name="selected_files" value="{{ f }}" {% if f == selected %}checked{% endif %} />
-                  </td>
-                  <td>
-                    <button type="submit" formaction="/?subdir={{ subdir }}&selected={{ f }}" formmethod="get" class="link-button">
-                      {{ f }}
-                    </button>
+                    <button type="submit"
+                      formaction="/?subdir={{ subdir }}&selected={{ f }}"
+                      formmethod="get" class="link-button">{{ f }}</button>
                   </td>
                 </tr>
               {% endfor %}
@@ -69,31 +99,27 @@
 
           <section class="edit-panel">
             <h2>Metadaten bearbeiten</h2>
-
             <div class="field-row">
-              <label for="exif_datetime">Datum &amp; Zeit:</label>
+              <label for="dt-picker">Datum &amp; Zeit:</label>
               <input type="datetime-local" id="dt-picker" />
               <input type="hidden" name="exif_datetime" id="exif-datetime-hidden" />
               <span class="hint">Wird automatisch in EXIF-Format umgewandelt.</span>
             </div>
-
             <div class="field-row">
               <label for="lat">Breitengrad (Lat):</label>
               <input type="text" id="lat" name="lat" placeholder="48.4010" />
-              <label for="lon">Längengrad (Lon):</label>
+              <label for="lon">Laengengrad (Lon):</label>
               <input type="text" id="lon" name="lon" placeholder="16.1680" />
             </div>
-
             <div id="map"></div>
-            <p class="hint">Karte: Klick setzt Lat/Lon, mit Mausrad zoomen, Drag zum Verschieben.</p>
-
+            <p class="hint">Karte: Klick setzt Lat/Lon, Mausrad zum Zoomen.</p>
             <div class="field-row actions">
-              <button type="submit">Auf ausgewählte Dateien anwenden</button>
+              <button type="submit">Auf ausgewaehlte Dateien anwenden</button>
             </div>
           </section>
         </form>
       {% else %}
-        <p>Keine Bilddateien in diesem Ordner gefunden.</p>
+        <p>Keine Bilddateien in diesem Ordner.{% if subdirs %} Waehle einen Unterordner.{% endif %}</p>
       {% endif %}
     </section>
 
@@ -101,25 +127,35 @@
       <h2>EXIF-Vorschau</h2>
       {% if preview_file %}
         <p><strong>Datei:</strong> {{ preview_file }}</p>
-        <img src="/static/placeholder-image.png" alt="Vorschau (Platzhalter)" class="thumb" />
+        <img src="/static/placeholder-image.png" alt="Vorschau" class="thumb" />
         {% if preview_meta.error %}
-          <p class="error">Fehler beim Lesen der Metadaten: {{ preview_meta.error }}</p>
+          <p class="error">Fehler: {{ preview_meta.error }}</p>
         {% else %}
           <table class="meta-table">
             <tbody>
               {% for key, value in preview_meta.items() %}
-                <tr>
-                  <th>{{ key }}</th>
-                  <td>{{ value }}</td>
-                </tr>
+                <tr><th>{{ key }}</th><td>{{ value }}</td></tr>
               {% endfor %}
             </tbody>
           </table>
         {% endif %}
       {% else %}
-        <p>Keine Datei ausgewählt.</p>
+        <p>Keine Datei ausgewaehlt.</p>
       {% endif %}
     </aside>
   </main>
+
+  <script>
+    function navigate(subdir) {
+      window.location.href = '/?subdir=' + encodeURIComponent(subdir);
+    }
+    const selectAll = document.getElementById('select-all');
+    if (selectAll) {
+      selectAll.addEventListener('change', function () {
+        document.querySelectorAll('input[name="selected_files"]')
+          .forEach(cb => cb.checked = this.checked);
+      });
+    }
+  </script>
 </body>
 </html>
