@@ -115,6 +115,11 @@
               <label for="lon">Laengengrad (Lon):</label>
               <input type="text" id="lon" name="lon" placeholder="16.1680" />
             </div>
+            <div class="field-row">
+              <label for="place-search">Ort suchen:</label>
+              <input type="text" id="place-search" placeholder="Adresse, Ort, POI..." />
+              <button type="button" onclick="searchPlace()">Suchen</button>
+            </div>
             <div id="map"></div>
             <p class="hint">Karte: Klick setzt Lat/Lon, Mausrad zum Zoomen oder Ortssuche verwenden.</p>
             <div class="field-row actions">
