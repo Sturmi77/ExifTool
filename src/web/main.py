@@ -194,6 +194,14 @@ async def rotate(
   if not path.is_file() or not str(path).startswith(str(folder)):
     return JSONResponse({"error": "not found"}, status_code=404)
 
+  suffix = path.suffix.lower()
+  allowed = {".jpg", ".jpeg", ".jpe", ".jfif", ".heic", ".heif"}
+  if suffix not in allowed:
+    return JSONResponse(
+      {"error": f"rotate not supported for format {suffix}"},
+      status_code=400,
+    )
+
   angle = -90 if direction == "cw" else 90
 
   try:
