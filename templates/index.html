@@ -25,6 +25,7 @@
     .up-link a:hover { text-decoration:underline; }
     .select-all-row { margin-bottom:.5rem; }
     .rotate-buttons { margin-top:.5rem; display:flex; gap:.5rem; }
+    .nav-buttons { margin-top:.5rem; display:flex; gap:.5rem; }
   </style>
 </head>
 <body>
@@ -91,9 +92,9 @@
                   <td><input type="checkbox" name="selected_files" value="{{ f }}"
                     {% if f == selected %}checked{% endif %} /></td>
                   <td>
-                    <button type="submit"
-                      formaction="/?subdir={{ subdir }}&selected={{ f }}"
-                      formmethod="get" class="link-button">{{ f }}</button>
+                    <button type="button"
+                      onclick="navigateSelected('{{ subdir }}', '{{ f }}')"
+                      class="link-button">{{ f }}</button>
                   </td>
                 </tr>
               {% endfor %}
@@ -136,6 +137,14 @@
           <button type="button" onclick="rotatePhoto('ccw')">&#x21BA; Links drehen</button>
           <button type="button" onclick="rotatePhoto('cw')">&#x21BB; Rechts drehen</button>
         </div>
+        <div class="nav-buttons">
+          {% if prev_file %}
+            <button type="button" onclick="navigateSelected('{{ subdir }}', '{{ prev_file }}')">&#x2039; Vorheriges</button>
+          {% endif %}
+          {% if next_file %}
+            <button type="button" onclick="navigateSelected('{{ subdir }}', '{{ next_file }}')">Naechstes &#x203A;</button>
+          {% endif %}
+        </div>
         {% if preview_meta.error %}
           <p class="error">Fehler: {{ preview_meta.error }}</p>
         {% else %}
@@ -156,6 +165,10 @@
   <script>
     function navigate(subdir) {
       window.location.href = '/?subdir=' + encodeURIComponent(subdir);
+    }
+    function navigateSelected(subdir, file) {
+      const url = '/?subdir=' + encodeURIComponent(subdir || '') + '&selected=' + encodeURIComponent(file);
+      window.location.href = url;
     }
     const selectAll = document.getElementById('select-all');
     if (selectAll) {
