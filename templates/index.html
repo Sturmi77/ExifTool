@@ -6,8 +6,10 @@
   <link rel="stylesheet" href="/static/main.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   <script src="/static/main.js" defer></script>
   <style>
     .breadcrumb { font-size:.85rem; margin-bottom:.5rem; }
@@ -22,6 +24,7 @@
     .up-link a { cursor:pointer; color:#666; font-size:.9rem; text-decoration:none; }
     .up-link a:hover { text-decoration:underline; }
     .select-all-row { margin-bottom:.5rem; }
+    .rotate-buttons { margin-top:.5rem; display:flex; gap:.5rem; }
   </style>
 </head>
 <body>
@@ -112,7 +115,7 @@
               <input type="text" id="lon" name="lon" placeholder="16.1680" />
             </div>
             <div id="map"></div>
-            <p class="hint">Karte: Klick setzt Lat/Lon, Mausrad zum Zoomen.</p>
+            <p class="hint">Karte: Klick setzt Lat/Lon, Mausrad zum Zoomen oder Ortssuche verwenden.</p>
             <div class="field-row actions">
               <button type="submit">Auf ausgewaehlte Dateien anwenden</button>
             </div>
@@ -127,7 +130,12 @@
       <h2>EXIF-Vorschau</h2>
       {% if preview_file %}
         <p><strong>Datei:</strong> {{ preview_file }}</p>
-        <img src="/static/placeholder-image.png" alt="Vorschau" class="thumb" />
+        <input type="hidden" id="preview-file" value="{{ preview_file }}" />
+        <img id="photo-preview" src="/thumb?subdir={{ subdir }}&file={{ preview_file }}" alt="Vorschau" class="thumb" />
+        <div class="rotate-buttons">
+          <button type="button" onclick="rotatePhoto('ccw')">&#x21BA; Links drehen</button>
+          <button type="button" onclick="rotatePhoto('cw')">&#x21BB; Rechts drehen</button>
+        </div>
         {% if preview_meta.error %}
           <p class="error">Fehler: {{ preview_meta.error }}</p>
         {% else %}
