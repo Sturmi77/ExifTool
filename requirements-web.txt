@@ -1,0 +1,8 @@
+# Web API & Browser GUI
+fastapi>=0.115
+uvicorn[standard]>=0.30
+jinja2>=3.1
+python-multipart>=0.0.9
+
+# Image thumbnail & rotation
+Pillow>=10.0
