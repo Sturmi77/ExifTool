@@ -6,7 +6,6 @@ function syncDateTimeToExif() {
     hidden.value = "";
     return;
   }
-  // Browser liefert z.B. 2026-03-30T17:45
   const raw = dtInput.value;
   const [datePart, timePart] = raw.split("T");
   if (!datePart || !timePart) {
@@ -14,7 +13,6 @@ function syncDateTimeToExif() {
     return;
   }
   const exifDate = datePart.replace(/-/g, ":");
-  // Sekunden optional → falls fehlen, auf 00 setzen
   let t = timePart;
   if (t.length === 5) {
     t = t + ":00";
@@ -65,6 +63,45 @@ function initMap() {
     const { lat, lng } = marker.getLatLng();
     updateInputsFrom(lat, lng);
   });
+
+  if (L.Control && L.Control.Geocoder) {
+    L.Control.geocoder({
+      defaultMarkGeocode: false,
+      placeholder: "Ort suchen...",
+      geocoder: L.Control.Geocoder.nominatim(),
+    }).on("markgeocode", (e) => {
+      const center = e.geocode.center;
+      marker.setLatLng(center);
+      map.setView(center, 14);
+      updateInputsFrom(center.lat, center.lng);
+    }).addTo(map);
+  }
+}
+
+async function rotatePhoto(direction) {
+  const fileInput = document.getElementById("preview-file");
+  const subdirInput = document.getElementById("hidden-subdir");
+  const img = document.getElementById("photo-preview");
+  if (!fileInput || !fileInput.value || !img) return;
+
+  const fd = new FormData();
+  fd.append("file", fileInput.value);
+  fd.append("subdir", subdirInput ? subdirInput.value : "");
+  fd.append("direction", direction);
+
+  try {
+    const resp = await fetch("/rotate", { method: "POST", body: fd });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      alert("Fehler beim Drehen: " + (data.error || resp.status));
+      return;
+    }
+    const url = new URL(img.src, window.location.origin);
+    url.searchParams.set("t", Date.now().toString());
+    img.src = url.toString();
+  } catch (err) {
+    alert("Netzwerkfehler beim Drehen: " + err);
+  }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
