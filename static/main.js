@@ -1,3 +1,6 @@
+let mapInstance = null;
+let markerInstance = null;
+
 // Konvertiert datetime-local Wert in EXIF-Format "YYYY:MM:DD HH:MM:SS"
 function syncDateTimeToExif() {
   const dtInput = document.getElementById("dt-picker");
@@ -40,12 +43,15 @@ function initMap() {
   let lon = parseFloat(lonInput.value) || defaultLon;
 
   const map = L.map(mapEl).setView([lat, lon], 10);
+  mapInstance = map;
+
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap-Mitwirkende",
   }).addTo(map);
 
   let marker = L.marker([lat, lon], { draggable: true }).addTo(map);
+  markerInstance = marker;
 
   function updateInputsFrom(lat, lon) {
     latInput.value = lat.toFixed(6);
@@ -98,11 +104,46 @@ async function rotatePhoto(direction) {
       alert("Fehler beim Drehen: " + (data.error || resp.status));
       return;
     }
-    const url = new URL(img.src, window.location.origin);
-    url.searchParams.set("t", Date.now().toString());
-    img.src = url.toString();
+    // Nach erfolgreichem Drehen komplette Seite neu laden,
+    // damit EXIF-Tabelle und Thumbnail sicher aktualisiert sind.
+    window.location.reload();
   } catch (err) {
     alert("Netzwerkfehler beim Drehen: " + err);
+  }
+}
+
+async function searchPlace() {
+  const input = document.getElementById("place-search");
+  const latInput = document.getElementById("lat");
+  const lonInput = document.getElementById("lon");
+  if (!input || !latInput || !lonInput || !mapInstance || !markerInstance) return;
+
+  const q = input.value.trim();
+  if (!q) return;
+
+  try {
+    const resp = await fetch(
+      "https://nominatim.openstreetmap.org/search?format=json&q=" +
+        encodeURIComponent(q)
+    );
+    if (!resp.ok) {
+      alert("Fehler bei der Ortssuche: " + resp.status);
+      return;
+    }
+    const data = await resp.json();
+    if (!data.length) {
+      alert("Kein Ort gefunden.");
+      return;
+    }
+    const lat = parseFloat(data[0].lat);
+    const lon = parseFloat(data[0].lon);
+    markerInstance.setLatLng([lat, lon]);
+    mapInstance.setView([lat, lon], 14);
+    latInput.value = lat.toFixed(6);
+    lonInput.value = lon.toFixed(6);
+    syncDateTimeToExif();
+  } catch (err) {
+    alert("Netzwerkfehler bei der Ortssuche: " + err);
   }
 }
 
