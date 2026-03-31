@@ -75,6 +75,8 @@ function initMap() {
       map.setView(center, 14);
       updateInputsFrom(center.lat, center.lng);
     }).addTo(map);
+  } else {
+    console.warn("Leaflet Geocoder plugin not available - no search box on map");
   }
 }
 
