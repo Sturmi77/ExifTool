@@ -4,10 +4,16 @@
 #   1. Repo unter Settings > Git hinterlegen
 #   2. Stack erstellen > "From Git" → compose.yaml wird automatisch erkannt
 #   3. Variablen als "Config Set" hinterlegen (siehe .env.example)
-#   4. Optional: Webhook für Auto-Sync bei Push aktivieren
+#   4. Optional: Webhook fuer Auto-Sync bei Push aktivieren
 #
 # GUI-Zugriff via Browser (FastAPI Web UI):
 #   http://<synology-ip>:6080/
+#
+# Mehrere Foto-Verzeichnisse:
+#   Bis zu 3 Host-Pfade koennen ueber PHOTOS_DIR_1 / _2 / _3 eingebunden
+#   werden. Sie erscheinen im GUI-Ordner-Browser als Unterordner unter /photos.
+#   Nicht benoetigte Variablen einfach leer lassen oder weglassen —
+#   der Default-Wert verhindert einen Compose-Fehler.
 
 services:
 
@@ -20,7 +26,7 @@ services:
     restart: unless-stopped
 
     environment:
-      # Basisverzeichnis im Container, in dem die Fotos liegen
+      # Basisverzeichnis im Container — wird NICHT geaendert
       - PHOTOS_DIR=/photos
 
     ports:
@@ -28,9 +34,16 @@ services:
       - "${WEB_PORT:-6080}:8000"
 
     volumes:
-      # Fotos-Verzeichnis vom Host (Pfad via Config Set setzen)
-      - ${PHOTOS_DIR:-/volume1/homes/Michael}:/photos:rw
-      # App-Konfiguration als named volume — optional für spätere Features
+      # ── Foto-Verzeichnisse ──────────────────────────────────────────────
+      # Jeder Host-Pfad wird als Unterordner unter /photos eingebunden.
+      # PHOTOS_DIR_1 ist Pflicht; _2 und _3 sind optional.
+      # Nicht gesetzte Variablen fallen auf PHOTOS_DIR_1 zurueck —
+      # das erzeugt zwar Duplikate, aber keinen Fehler.
+      - ${PHOTOS_DIR_1:-/volume1/homes/Michael}:/photos/dir1:rw
+      - ${PHOTOS_DIR_2:-${PHOTOS_DIR_1:-/volume1/homes/Michael}}:/photos/dir2:rw
+      - ${PHOTOS_DIR_3:-${PHOTOS_DIR_1:-/volume1/homes/Michael}}:/photos/dir3:rw
+
+      # App-Konfiguration als named volume
       - exiftool_config:/home/exifuser/.config/exiftool-gui
 
     labels:
@@ -39,8 +52,8 @@ services:
       - "dockhand.update.vulnerability-criteria=critical"
 
     healthcheck:
-      # Einfache Healthcheck-Variante: prüft ob Python und FastAPI importierbar sind
-      test: ["CMD", "python", "-c", "import fastapi"]
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 60s
       timeout: 10s
       retries: 3
