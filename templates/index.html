@@ -82,25 +82,32 @@
             <label><input type="checkbox" id="select-all" /> Alle auswaehlen</label>
           </div>
 
-          <table class="file-table">
-            <thead><tr><th>&#x2714;</th><th>Dateiname</th></tr></thead>
-            <tbody>
-              {% for f in files %}
-                <tr class="file-row {% if f == selected %}selected{% endif %}">
-                  <td><input type="checkbox" name="selected_files" value="{{ f | e }}"
-                    {% if f == selected %}checked{% endif %} /></td>
-                  <td>
-                    <button type="button"
-                      onclick="navigateSelected('{{ subdir | e }}', '{{ f | e }}')"
-                      class="link-button">{{ f }}</button>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+          <!-- Issue #7: Wrapper mit fixer Hoehe + Scroll -->
+          <div class="file-table-scroll">
+            <table class="file-table">
+              <thead><tr><th>&#x2714;</th><th>Dateiname</th></tr></thead>
+              <tbody>
+                {% for f in files %}
+                  <tr class="file-row {% if f == selected %}selected{% endif %}">
+                    <td><input type="checkbox" name="selected_files" value="{{ f | e }}"
+                      {% if f == selected %}checked{% endif %} /></td>
+                    <td>
+                      <button type="button"
+                        onclick="navigateSelected('{{ subdir | e }}', '{{ f | e }}')"
+                        class="link-button">{{ f }}</button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
 
           <section class="edit-panel">
             <h2>Metadaten bearbeiten</h2>
+
+            <!-- Issue #6: Anzahl ausgewaehlter Dateien -->
+            <span id="selected-count" class="selected-count count-empty">Keine Dateien ausgewaehlt</span>
+
             <div class="field-row">
               <label for="dt-picker">Datum &amp; Zeit:</label>
               <input type="datetime-local" id="dt-picker" />
@@ -121,7 +128,7 @@
             <div id="map"></div>
             <p class="hint">Karte: Klick setzt Lat/Lon, Mausrad zum Zoomen oder Ortssuche verwenden.</p>
             <div class="field-row actions">
-              <button type="submit">Auf ausgewaehlte Dateien anwenden</button>
+              <button type="submit" id="apply-btn">Auf ausgew. Dateien anwenden</button>
             </div>
           </section>
         </form>
@@ -136,7 +143,6 @@
         <p><strong>Datei:</strong> {{ preview_file }}</p>
         <div class="preview-controls">
           <input type="hidden" id="preview-file" value="{{ preview_file | e }}" />
-          {# URL-encode subdir und preview_file damit Sonderzeichen wie + korrekt uebertragen werden #}
           <img id="photo-preview"
                src="/thumb?subdir={{ subdir | urlencode }}&amp;file={{ preview_file | urlencode }}"
                alt="Vorschau" class="thumb" />
@@ -169,22 +175,5 @@
       {% endif %}
     </aside>
   </main>
-
-  <script>
-    function navigate(subdir) {
-      window.location.href = '/?subdir=' + encodeURIComponent(subdir);
-    }
-    function navigateSelected(subdir, file) {
-      const url = '/?subdir=' + encodeURIComponent(subdir || '') + '&selected=' + encodeURIComponent(file);
-      window.location.href = url;
-    }
-    const selectAll = document.getElementById('select-all');
-    if (selectAll) {
-      selectAll.addEventListener('change', function () {
-        document.querySelectorAll('input[name="selected_files"]')
-          .forEach(cb => cb.checked = this.checked);
-      });
-    }
-  </script>
 </body>
 </html>

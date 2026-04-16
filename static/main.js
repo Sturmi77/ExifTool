@@ -1,6 +1,49 @@
 let mapInstance = null;
 let markerInstance = null;
 
+// ── Issue #6: Ausgewaehlte Dateien zaehlen ─────────────────────────────────────
+function updateSelectedCount() {
+  const checkboxes = document.querySelectorAll('input[name="selected_files"]');
+  const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+  const span = document.getElementById('selected-count');
+  const btn  = document.getElementById('apply-btn');
+
+  if (span) {
+    if (checked === 0) {
+      span.textContent = 'Keine Dateien ausgewaehlt';
+      span.className = 'selected-count count-empty';
+    } else if (checked === 1) {
+      span.textContent = '1 Datei ausgewaehlt';
+      span.className = 'selected-count count-active';
+    } else {
+      span.textContent = `${checked} Dateien ausgewaehlt`;
+      span.className = 'selected-count count-active';
+    }
+  }
+  if (btn) btn.disabled = checked === 0;
+}
+
+function initSelectedCount() {
+  const checkboxes = document.querySelectorAll('input[name="selected_files"]');
+  checkboxes.forEach(cb => cb.addEventListener('change', updateSelectedCount));
+
+  // Auch "Alle auswaehlen" mitverfolgen
+  const selectAll = document.getElementById('select-all');
+  if (selectAll) {
+    selectAll.addEventListener('change', updateSelectedCount);
+  }
+
+  updateSelectedCount(); // initialer Stand
+}
+
+// ── Issue #7: Ausgewaehlte Zeile in sichtbaren Bereich scrollen ────────────────
+function scrollToSelected() {
+  const selected = document.querySelector('.file-row.selected');
+  if (selected) {
+    selected.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
 // Konvertiert datetime-local Wert in EXIF-Format "YYYY:MM:DD HH:MM:SS"
 function syncDateTimeToExif() {
   const dtInput = document.getElementById("dt-picker");
@@ -104,8 +147,6 @@ async function rotatePhoto(direction) {
       alert("Fehler beim Drehen: " + (data.error || resp.status));
       return;
     }
-    // Nach erfolgreichem Drehen komplette Seite neu laden,
-    // damit EXIF-Tabelle und Thumbnail sicher aktualisiert sind.
     window.location.reload();
   } catch (err) {
     alert("Netzwerkfehler beim Drehen: " + err);
@@ -147,7 +188,18 @@ async function searchPlace() {
   }
 }
 
+function navigate(subdir) {
+  window.location.href = '/?subdir=' + encodeURIComponent(subdir);
+}
+
+function navigateSelected(subdir, file) {
+  const url = '/?subdir=' + encodeURIComponent(subdir || '') + '&selected=' + encodeURIComponent(file);
+  window.location.href = url;
+}
+
 window.addEventListener("DOMContentLoaded", () => {
   initDateBinding();
   initMap();
+  initSelectedCount();
+  scrollToSelected();
 });
