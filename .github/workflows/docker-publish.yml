@@ -1,9 +1,21 @@
 name: Build & Push Docker Image
 
-# Deaktiviert automatischen Build/Push bei jedem Commit.
-# Workflow kann weiterhin manuell im GitHub Actions Tab gestartet werden.
 on:
+  # Automatischer Build+Push bei semantischen Version-Tags (z.B. v0.2.0)
+  push:
+    tags:
+      - 'v*.*.*'
+  # Manueller Build weiterhin moeglich (z.B. fuer latest ohne neuen Tag)
   workflow_dispatch:
+    inputs:
+      push_latest:
+        description: 'latest-Tag pushen?'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
   build-and-push:
@@ -28,9 +40,12 @@ jobs:
         with:
           images: sturmi77/exiftool-gui
           tags: |
-            # latest bei manuellem Run
-            type=raw,value=latest
-            # Zusätzlich SHA-Tag für Rollback
+            # Bei Tag-Push: semver-Tag + latest automatisch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # Bei manuellem Dispatch: latest (wenn push_latest=true oder kein Input)
+            type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.push_latest == 'true') || github.event_name == 'push' }}
+            # Immer: SHA-Tag fuer Rollback
             type=sha,prefix=sha-
 
       - name: Build and Push Image
