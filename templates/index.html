@@ -43,7 +43,7 @@
       <nav class="breadcrumb">
         {% for crumb in breadcrumb %}
           {% if not loop.last %}
-            <a onclick="navigate('{{ crumb.path }}')">{{ crumb.label }}</a>
+            <a onclick="navigate('{{ crumb.path | e }}')">{{ crumb.label }}</a>
             <span class="sep">&#x203a;</span>
           {% else %}
             <span>{{ crumb.label }}</span>
@@ -54,7 +54,7 @@
       <!-- Up link -->
       {% if parent_subdir is not none %}
         <p class="up-link">
-          <a onclick="navigate('{{ parent_subdir }}')">&#x2B06; Eine Ebene hoch</a>
+          <a onclick="navigate('{{ parent_subdir | e }}')">&#x2B06; Eine Ebene hoch</a>
         </p>
       {% endif %}
 
@@ -66,7 +66,7 @@
             {% set child_path = (subdir + '/' + d) if subdir else d %}
             <li>
               <span>&#x1F4C1;</span>
-              <a onclick="navigate('{{ child_path }}')">{{ d }}</a>
+              <a onclick="navigate('{{ child_path | e }}')">{{ d }}</a>
             </li>
           {% endfor %}
         </ul>
@@ -76,7 +76,7 @@
       {% if files %}
         <h3>Dateien ({{ files|length }})</h3>
         <form method="post" action="/apply" id="apply-form">
-          <input type="hidden" name="subdir" value="{{ subdir }}" id="hidden-subdir" />
+          <input type="hidden" name="subdir" value="{{ subdir | e }}" id="hidden-subdir" />
 
           <div class="select-all-row">
             <label><input type="checkbox" id="select-all" /> Alle auswaehlen</label>
@@ -87,11 +87,11 @@
             <tbody>
               {% for f in files %}
                 <tr class="file-row {% if f == selected %}selected{% endif %}">
-                  <td><input type="checkbox" name="selected_files" value="{{ f }}"
+                  <td><input type="checkbox" name="selected_files" value="{{ f | e }}"
                     {% if f == selected %}checked{% endif %} /></td>
                   <td>
                     <button type="button"
-                      onclick="navigateSelected('{{ subdir }}', '{{ f }}')"
+                      onclick="navigateSelected('{{ subdir | e }}', '{{ f | e }}')"
                       class="link-button">{{ f }}</button>
                   </td>
                 </tr>
@@ -135,18 +135,21 @@
       {% if preview_file %}
         <p><strong>Datei:</strong> {{ preview_file }}</p>
         <div class="preview-controls">
-          <input type="hidden" id="preview-file" value="{{ preview_file }}" />
-          <img id="photo-preview" src="/thumb?subdir={{ subdir }}&file={{ preview_file }}" alt="Vorschau" class="thumb" />
+          <input type="hidden" id="preview-file" value="{{ preview_file | e }}" />
+          {# URL-encode subdir und preview_file damit Sonderzeichen wie + korrekt uebertragen werden #}
+          <img id="photo-preview"
+               src="/thumb?subdir={{ subdir | urlencode }}&amp;file={{ preview_file | urlencode }}"
+               alt="Vorschau" class="thumb" />
           <div class="rotate-buttons">
             <button type="button" onclick="rotatePhoto('ccw')">&#x21BA; Links drehen</button>
             <button type="button" onclick="rotatePhoto('cw')">&#x21BB; Rechts drehen</button>
           </div>
           <div class="nav-buttons">
             {% if prev_file %}
-              <button type="button" onclick="navigateSelected('{{ subdir }}', '{{ prev_file }}')">&#x2039; Vorheriges</button>
+              <button type="button" onclick="navigateSelected('{{ subdir | e }}', '{{ prev_file | e }}')">&#x2039; Vorheriges</button>
             {% endif %}
             {% if next_file %}
-              <button type="button" onclick="navigateSelected('{{ subdir }}', '{{ next_file }}')">Naechstes &#x203A;</button>
+              <button type="button" onclick="navigateSelected('{{ subdir | e }}', '{{ next_file | e }}')">Naechstes &#x203A;</button>
             {% endif %}
           </div>
         </div>

@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import List, Optional
+import urllib.parse
 
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
@@ -163,6 +164,10 @@ async def browse(subdir: str = ""):
 async def thumb(subdir: str, file: str):
   """Return a JPEG thumbnail for the given file."""
   base = BASE_PHOTOS_DIR
+  # unquote_plus als Fallback-Absicherung: dekodiert %2B -> + und + -> Leerzeichen
+  # (FastAPI decodiert normalerweise selbst, aber doppelte Enkodierung kann vorkommen)
+  file = urllib.parse.unquote_plus(file)
+  subdir = urllib.parse.unquote_plus(subdir)
   folder = _safe_join(base, subdir)
   path = (folder / file).resolve()
   if not path.is_file() or not str(path).startswith(str(folder)):
