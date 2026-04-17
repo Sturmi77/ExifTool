@@ -18,10 +18,9 @@
 services:
 
   exiftool-gui:
-    image: sturmi77/exiftool-gui:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Fixe Minor-Version — Dockhand erkennt automatisch wenn eine neue
+    # Minor-Version (z.B. 0.2) auf Docker Hub erscheint.
+    image: sturmi77/exiftool-gui:0.1
     container_name: exiftool-gui
     restart: unless-stopped
 
