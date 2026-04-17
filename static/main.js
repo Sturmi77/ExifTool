@@ -25,13 +25,30 @@ function updateSelectedCount() {
 
 function initSelectedCount() {
   const checkboxes = document.querySelectorAll('input[name="selected_files"]');
-  checkboxes.forEach(cb => cb.addEventListener('change', updateSelectedCount));
+  const selectAll  = document.getElementById('select-all');
 
-  // Auch "Alle auswaehlen" mitverfolgen
-  const selectAll = document.getElementById('select-all');
+  // ── Issue #8: Alle auswaehlen – Dateien tatsaechlich setzen ──────────────────
   if (selectAll) {
-    selectAll.addEventListener('change', updateSelectedCount);
+    selectAll.addEventListener('change', () => {
+      checkboxes.forEach(cb => { cb.checked = selectAll.checked; });
+      // Indeterminate zuruecksetzen
+      selectAll.indeterminate = false;
+      updateSelectedCount();
+    });
   }
+
+  // Einzelne Checkbox: Master-Status nachfuehren
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const total   = checkboxes.length;
+      const checked = Array.from(checkboxes).filter(c => c.checked).length;
+      if (selectAll) {
+        selectAll.checked       = checked === total;
+        selectAll.indeterminate = checked > 0 && checked < total;
+      }
+      updateSelectedCount();
+    });
+  });
 
   updateSelectedCount(); // initialer Stand
 }

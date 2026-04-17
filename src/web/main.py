@@ -16,6 +16,13 @@ from PIL import Image, ImageOps
 
 BASE_PHOTOS_DIR = Path(os.environ.get("PHOTOS_DIR", "/photos")).resolve()
 
+# Echte Ordnernamen fuer dir1/dir2/dir3 aus Env lesen (letztes Pfadsegment)
+DIR_LABELS: dict[str, str] = {}
+for _i in range(1, 4):
+    _val = os.environ.get(f"PHOTOS_DIR_{_i}", "").strip()
+    if _val:
+        DIR_LABELS[f"dir{_i}"] = Path(_val).name
+
 app = FastAPI(title="ExifTool GUI (Web)")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -69,7 +76,9 @@ def _breadcrumb(subdir: str) -> list:
   accumulated = ""
   for part in parts:
     accumulated = f"{accumulated}/{part}" if accumulated else part
-    crumbs.append({"label": part, "path": accumulated})
+    # Echten Anzeigenamen verwenden falls vorhanden (z.B. dir1 -> photo)
+    label = DIR_LABELS.get(part, part)
+    crumbs.append({"label": label, "path": accumulated})
   return crumbs
 
 
@@ -133,6 +142,7 @@ async def index(
       "subdir": subdir,
       "folder": str(folder),
       "subdirs": subdirs,
+      "dir_labels": DIR_LABELS,
       "breadcrumb": breadcrumb,
       "parent_subdir": parent_subdir,
       "files": rel_files,
@@ -164,8 +174,6 @@ async def browse(subdir: str = ""):
 async def thumb(subdir: str, file: str):
   """Return a JPEG thumbnail for the given file."""
   base = BASE_PHOTOS_DIR
-  # unquote_plus als Fallback-Absicherung: dekodiert %2B -> + und + -> Leerzeichen
-  # (FastAPI decodiert normalerweise selbst, aber doppelte Enkodierung kann vorkommen)
   file = urllib.parse.unquote_plus(file)
   subdir = urllib.parse.unquote_plus(subdir)
   folder = _safe_join(base, subdir)
@@ -191,7 +199,7 @@ async def thumb(subdir: str, file: str):
 async def rotate(
   subdir: str = Form(""),
   file: str = Form(""),
-  direction: str = Form("cw"),  # cw / ccw
+  direction: str = Form("cw"),
 ):
   base = BASE_PHOTOS_DIR
   folder = _safe_join(base, subdir)

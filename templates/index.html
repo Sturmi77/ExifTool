@@ -12,24 +12,27 @@
   <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
   <script src="/static/main.js" defer></script>
   <style>
-    .breadcrumb { font-size:.85rem; margin-bottom:.5rem; }
+    .breadcrumb { font-size:.85rem; margin-bottom:.4rem; }
     .breadcrumb a { color:var(--accent,#0078d7); cursor:pointer; text-decoration:underline; }
     .breadcrumb span { color:#555; }
     .breadcrumb .sep { margin:0 .3rem; color:#aaa; }
-    .dir-list { list-style:none; padding:0; margin:0 0 .75rem; }
-    .dir-list li { display:flex; align-items:center; gap:.4rem; padding:.2rem 0; }
+    .dir-list { list-style:none; padding:0; margin:0 0 .5rem; }
+    .dir-list li { display:flex; align-items:center; gap:.4rem; padding:.15rem 0; }
     .dir-list li a { cursor:pointer; color:var(--accent,#0078d7); text-decoration:none; font-weight:500; }
     .dir-list li a:hover { text-decoration:underline; }
-    .up-link { margin-bottom:.5rem; }
-    .up-link a { cursor:pointer; color:#666; font-size:.9rem; text-decoration:none; }
+    .up-link { margin-bottom:.3rem; }
+    .up-link a { cursor:pointer; color:#666; font-size:.85rem; text-decoration:none; }
     .up-link a:hover { text-decoration:underline; }
-    .select-all-row { margin-bottom:.5rem; }
+    .select-all-row { margin-bottom:.3rem; font-size:.9rem; }
+    .files-header { display:flex; align-items:baseline; gap:.5rem; margin:.4rem 0 .2rem; }
+    .files-header h3 { margin:0; font-size:.95rem; }
+    .files-header .file-count { font-size:.8rem; color:#888; }
   </style>
 </head>
 <body>
+  <!-- Kompakter Header: nur Titel + aktuelles Verzeichnis in einer Zeile -->
   <header>
-    <h1>ExifTool GUI - Web</h1>
-    <p class="subtitle">EXIF Datum &amp; GPS bearbeiten &middot; Basis: <code>{{ base_dir }}</code></p>
+    <h1>ExifTool GUI <span class="subtitle">&#x2014; <code>{{ base_dir }}</code></span></h1>
   </header>
 
   {% if message %}
@@ -58,15 +61,16 @@
         </p>
       {% endif %}
 
-      <!-- Unterordner -->
+      <!-- Unterordner (ohne Ueberschrift) -->
       {% if subdirs %}
-        <h3>Unterordner</h3>
         <ul class="dir-list">
           {% for d in subdirs %}
             {% set child_path = (subdir + '/' + d) if subdir else d %}
             <li>
               <span>&#x1F4C1;</span>
-              <a onclick="navigate('{{ child_path | e }}')">{{ d }}</a>
+              <a onclick="navigate('{{ child_path | e }}')">
+                {{ dir_labels.get(d, d) }}
+              </a>
             </li>
           {% endfor %}
         </ul>
@@ -74,7 +78,10 @@
 
       <!-- Dateien -->
       {% if files %}
-        <h3>Dateien ({{ files|length }})</h3>
+        <div class="files-header">
+          <h3>Dateien</h3>
+          <span class="file-count">({{ files|length }})</span>
+        </div>
         <form method="post" action="/apply" id="apply-form">
           <input type="hidden" name="subdir" value="{{ subdir | e }}" id="hidden-subdir" />
 
@@ -82,7 +89,7 @@
             <label><input type="checkbox" id="select-all" /> Alle auswaehlen</label>
           </div>
 
-          <!-- Issue #7: Wrapper mit fixer Hoehe + Scroll -->
+          <!-- Scrollbare Dateiliste -->
           <div class="file-table-scroll">
             <table class="file-table">
               <thead><tr><th>&#x2714;</th><th>Dateiname</th></tr></thead>
@@ -105,7 +112,6 @@
           <section class="edit-panel">
             <h2>Metadaten bearbeiten</h2>
 
-            <!-- Issue #6: Anzahl ausgewaehlter Dateien -->
             <span id="selected-count" class="selected-count count-empty">Keine Dateien ausgewaehlt</span>
 
             <div class="field-row">
