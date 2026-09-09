@@ -12,7 +12,7 @@ Pull Requests immer von `development` → `main` (nie direkt auf `main` pushen).
 
 ---
 
-## Lokales Setup
+## Lokales Setup Web-UI
 
 ```bash
 git clone https://github.com/Sturmi77/ExifTool.git
@@ -26,7 +26,8 @@ pip install -r requirements.txt
 # ExifTool installieren
 sudo apt install libimage-exiftool-perl
 
-python src/main.py
+export PHOTOS_DIR=/pfad/zu/deinen/fotos
+uvicorn src.web.main:app --reload --port 8000
 ```
 
 ---
@@ -45,46 +46,70 @@ pytest tests/ -v
 
 ```bash
 # Bauen
-docker build -t sturmi77/exiftool-gui:latest .
+docker build -t sturmi77/exiftool-gui:0.1.0 .
 
-# Lokal testen (Linux mit X11)
-xhost +local:docker
-docker compose up
+# Lokal testen
+PHOTOS_DIR=/pfad/zu/deinen/fotos \
+  docker run --rm -p 8000:8000 -e PHOTOS_DIR=/photos \
+  -v /pfad/zu/deinen/fotos:/photos \
+  sturmi77/exiftool-gui:0.1.0
 ```
 
 ---
 
-## Architektur
+## Architektur (Web)
 
 ```
 src/
-├── main.py              # Einstiegspunkt – startet App()
-├── gui/
-│   ├── app.py           # Hauptfenster, Layout (PanedWindow-artig)
-│   ├── folder_panel.py  # Ordner-/Dateiauswahl, Scan-Logik
-│   ├── edit_panel.py    # Eingabefelder, Buttons, Referenz-Kopie
-│   ├── date_picker.py   # Modaler Dialog: tkcalendar + Spinboxes
-│   ├── map_picker.py    # Modaler Dialog: TkinterMapView + Geocoding
-│   └── exif_preview.py  # Seitenpanel: Thumbnail + EXIF-Tag-Tabelle
+├── web/
+│   ├── main.py          # FastAPI-App, Routing & Templating
+│   └── ...              # spätere Erweiterungen (APIs, Auth, etc.)
 └── core/
     ├── exiftool.py      # Subprocess-Wrapper um ExifTool CLI
     └── utils.py         # Datum-Parsing, DMS-Konverter
 ```
 
-### Datenfluss
+Datenfluss (Web):
 
 ```
-FolderPanel ──on_files_changed─► App._on_files_changed ─► Listbox befüllen
-Listbox     ──<<ListboxSelect>>─► App._on_file_select   ─► ExifPreviewPanel.load_file()
-EditPanel   ──_apply()───────► ExifToolWrapper.write_metadata()
-EditPanel   ──_copy_from_reference()► ExifToolWrapper.read_metadata_extended()
+Browser ▷ FastAPI ▷ ExifToolWrapper ▷ Dateien unter PHOTOS_DIR
 ```
 
 ---
 
-## Neue Features hinzufügen
+## Legacy Desktop-GUI
 
-1. Branch von `development` erstellen: `git checkout -b feature/mein-feature`
-2. Implementieren, committen
-3. Pull Request → `development`
-4. Nach Review: Merge in `development`, später Release-PR → `main`
+Die frühere Tkinter-GUI liegt unter `src/gui/` und `src/main.py`. Sie wird
+nicht mehr aktiv weiterentwickelt, kann aber weiterhin genutzt werden.
+
+Kurz-Setup:
+
+```bash
+python src/main.py
+```
+
+---
+
+## Releases & Tags
+
+Wir verwenden SemVer für Versionen:
+
+- `v0.1.0`: erster Web-Release
+- `v0.1.x`: Bugfixes
+- `v0.2.0`: neue Features
+
+Release-Ablauf:
+
+1. Sicherstellen, dass `main` den gewünschten Stand enthält.
+2. Version in Dockerfile/README/CHANGELOG prüfen/aktualisieren.
+3. Tag setzen:
+
+   ```bash
+   git checkout main
+   git pull
+   git tag -a v0.1.0 -m "First public web release"
+   git push origin v0.1.0
+   ```
+
+4. Auf GitHub unter **Releases** ein Release für `v0.1.0` erstellen.
+5. Optional: den Docker-Publish-Workflow manuell auslösen.

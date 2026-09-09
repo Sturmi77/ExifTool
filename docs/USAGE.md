@@ -1,79 +1,128 @@
-# Bedienungsanleitung — ExifTool GUI
+# Bedienungsanleitung — ExifTool GUI (Web)
 
 ## Starten
 
-```bash
-python src/main.py
-```
+### Docker / Compose (empfohlen)
+
+1. `.env` anlegen und `PHOTOS_DIR` konfigurieren:
+
+   ```bash
+   cp .env.example .env
+   # PHOTOS_DIR auf dein Foto-Verzeichnis setzen
+   ```
+
+2. Stack starten:
+
+   ```bash
+   docker compose up --build -d
+   ```
+
+3. Weboberfläche aufrufen:
+
+   ```text
+   http://<host>:8000/
+   ```
+
+### Lokale Entwicklung
+
+Siehe [README.md → Lokale Entwicklung (Web)](../README.md#lokale-entwicklung-web).
 
 ---
 
-## 1. Bilder laden
+## 1. Ordner & Dateien
 
-Oben in der Leiste **"Dateien laden"** gibt es zwei Möglichkeiten:
+Links befindet sich der Ordner-Browser:
 
-| Aktion | Beschreibung |
+| Element | Beschreibung |
 |---|---|
-| **📁 Ordner wählen** | Scannt alle Bilder im Ordner. Mit ☑ "Unterordner einbeziehen" auch rekursiv. |
-| **🖼 Dateien wählen** | Einzelne oder mehrere Bilder per Dateidialog auswählen (Mehrfachauswahl möglich). |
-| **✖ Liste leeren** | Dateiliste zurücksetzen. |
+| Breadcrumb | Zeigt den aktuellen Pfad relativ zu `PHOTOS_DIR`, Klick auf Elemente navigiert nach oben. |
+| Unterordnerliste | Klick auf einen Ordner springt in diesen Ordner. |
+| Dateiliste | Alle unterstützten Bilddateien im aktuellen Ordner. |
+
+- Klick auf einen Dateinamen lädt **rechts die Vorschau** (Thumbnail + EXIF-Tabelle).
+- Checkboxen in der Liste bestimmen, auf welche Dateien Änderungen angewendet werden.
 
 ---
 
-## 2. EXIF-Vorschau
+## 2. EXIF-Vorschau & Navigation
 
-Beim Klick auf eine Datei in der Liste erscheint rechts automatisch:
-- **Thumbnail** des Bildes (benötigt `Pillow`)
-- **Metadaten-Tabelle**: Datum, GPS, Kamera, Objektiv, ISO, Blende, etc.
+Rechts zeigt die **EXIF-Vorschau**:
 
-Die Werte sind per Maus kopierbar.
+- Oben: Dateiname der aktuell ausgewählten Datei.
+- Darunter: Thumbnail der Datei.
+- Buttons **Links drehen / Rechts drehen** drehen die Datei physisch.
+- Buttons **Vorheriges / Nächstes** wechseln zur benachbarten Datei im aktuellen Ordner.
+- EXIF-Tabelle listet die wichtigsten Metadaten (Datum, GPS, Kamera, Objektiv usw.).
+
+Nach einem Drehvorgang lädt die Seite neu, sodass Thumbnail und EXIF-Daten garantiert aktuell sind.
 
 ---
 
 ## 3. Datum ändern
 
-- Direkt ins Feld `Datum & Zeit` tippen (Format `YYYY:MM:DD HH:MM:SS`)
-- Oder 📅 **Kalender**-Button → Monat klicken + Uhrzeit einstellen
-  - Schnellwahl: **Jetzt**, **Mitternacht**, **Mittag**
-  - Live-Vorschau des EXIF-Strings
+Im Bereich **Metadaten bearbeiten**:
+
+- Feld **Datum & Zeit** ist ein `datetime-local` Eingabefeld.
+- Beim Tippen oder Ändern wird automatisch ein EXIF-konformer String im Format
+  `YYYY:MM:DD HH:MM:SS` erzeugt und beim Schreiben verwendet.
+
+Du kannst entweder direkt tippen oder den Browser-Datepicker verwenden.
 
 ---
 
 ## 4. GPS-Koordinaten ändern
 
-- Koordinaten direkt in die Felder **Lat / Lon** tippen (Dezimalgrad, z.B. `48.401`, `16.168`)
-- Oder 🗺 **Karte öffnen** (benötigt `tkintermapview`):
-  - Auf die Karte klicken um Marker zu setzen
-  - Adresse suchen (OpenStreetMap Nominatim)
-  - 📍 **Adresse anzeigen** für Reverse-Geocoding
-  - **✔ Koordinaten übernehmen** überträgt den Marker in die Felder
+### Direkte Eingabe
+
+- Felder **Lat** und **Lon** akzeptieren Dezimalgrad (z.B. `48.4010`, `16.1680`).
+
+### Karte
+
+- Die Karte zeigt die aktuelle Position des Markers.
+- Klick in die Karte setzt den Marker.
+- Drag & Drop des Markers verschiebt die Position.
+- Die Felder **Lat/Lon** werden bei Änderungen automatisch aktualisiert.
+
+### Ortssuche (Nominatim)
+
+- Im Feld **Ort suchen** kannst du z.B. eine Adresse oder einen Ortsnamen eingeben.
+- Klick auf **Suchen** nutzt OpenStreetMap Nominatim, um Koordinaten zu finden.
+- Bei Erfolg wird der Marker versetzt, die Karte zentriert und Lat/Lon übernommen.
+
+> Hinweis: Die Nutzung von Nominatim unterliegt den Nutzungsbedingungen der OSMF.
 
 ---
 
-## 5. Metadaten von Referenzdatei kopieren
+## 5. Änderungen schreiben
 
-Ideal wenn mehrere Fotos vom gleichen Ort/Zeitpunkt stammen:
-
-1. **📎 Referenzdatei wählen** → ein Foto mit den gewünschten EXIF-Daten
-2. Vorschau zeigt Datum & GPS der Referenz
-3. Checkboxen **Datum** / **GPS** nach Bedarf aktivieren
-4. **→ In Felder übernehmen** → Werte werden in die Eingabefelder übertragen
-5. Dateien auswählen + **Auf Auswahl/Alle anwenden**
-
----
-
-## 6. Änderungen schreiben
+Unterhalb der Metadatenfelder befindet sich der Button:
 
 | Button | Wirkung |
 |---|---|
-| **Auf Auswahl anwenden** | Schreibt nur auf markierte Dateien (Strg+Klick / Shift für Mehrfach) |
-| **Auf alle Dateien anwenden** | Schreibt auf alle Dateien in der Liste |
+| **Auf ausgewählte Dateien anwenden** | Schreibt Datum/GPS auf alle markierten Dateien im aktuellen Ordner. |
 
-> ⚠️ ExifTool legt automatisch Sicherungskopien als `dateiname_original` an.
-> Um Backups zu deaktivieren, `exiftool.py` anpassen (`-overwrite_original` statt `-overwrite_original_in_place`).
+Ablauf:
+
+1. Dateien in der Liste per Checkbox markieren.
+2. Datum und/oder GPS-Felder ausfüllen.
+3. Button klicken.
+4. Status-Meldung oben (grüner Kasten) bestätigt Erfolg oder zeigt einen Fehler.
+
+ExifTool legt je nach Konfiguration interne Backups an oder überschreibt Dateien
+in-place. Siehe `src/core/exiftool.py` für Details.
 
 ---
 
-## Docker / Dockge
+## 6. Desktop-GUI (Legacy)
 
-Siehe [README.md → Docker Deployment](../README.md#docker--dockge-deployment).
+Die ursprüngliche Tkinter-GUI wird weiter unterstützt, ist aber nicht mehr
+Standard. Für die Bedienung siehe die frühere Dokumentation oder ältere Tags.
+
+Kurzfassung:
+
+```bash
+python src/main.py
+```
+
+Voraussetzung: Die in `requirements.txt` aufgeführten Desktop-Pakete
+(`tkintermapview`, `tkcalendar`, `geopy`) sind installiert.

@@ -1,16 +1,10 @@
-# GUI: Tkinter is included in standard Python
+# Basis: Web-UI
+-r requirements-web.txt
 
-# Map widget (OpenStreetMap tiles, MIT license)
+# Desktop-GUI (optional)
 tkintermapview>=1.29
-
-# Calendar date picker
-tkcalendar>=1.6.1
-
-# Image thumbnail preview in EXIF panel
-Pillow>=10.0
-
-# Reverse geocoding (address lookup from GPS)
+=tkcalendar>=1.6.1
 geopy>=2.4.0
 
-# Testing
-pytest>=7.0
+# Entwicklung / Tests
+-r requirements-dev.txt

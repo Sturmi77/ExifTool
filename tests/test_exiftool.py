@@ -1,7 +1,10 @@
-"""Basic tests for ExifToolWrapper and utility functions."""
+"""Basic tests for ExifToolWrapper, utils and web helper functions."""
+import asyncio
+
 import pytest
 from src.core.utils import parse_exif_date, format_exif_date, decimal_to_dms
 from src.core.exiftool import ExifToolWrapper
+from src.web.main import _safe_join, health, BASE_PHOTOS_DIR
 
 
 def test_parse_valid_date():
@@ -18,6 +21,7 @@ def test_parse_invalid_date():
 
 def test_format_date():
     from datetime import datetime
+
     dt = datetime(2024, 8, 15, 12, 30, 0)
     assert format_exif_date(dt) == "2024:08:15 12:30:00"
 
@@ -35,3 +39,26 @@ def test_exiftool_available():
     # Skip gracefully if not available
     if not wrapper.is_available():
         pytest.skip("exiftool not installed on this system")
+
+
+def test_safe_join_inside_base(tmp_path, monkeypatch):
+    # Use a temporary base dir to avoid depending on real /photos
+    base = tmp_path
+    # Monkeypatch BASE_PHOTOS_DIR to match our temp dir for this test
+    monkeypatch.setattr("src.web.main.BASE_PHOTOS_DIR", base)
+    p = _safe_join(base, "subdir/file.jpg")
+    assert str(p).startswith(str(base))
+
+
+def test_safe_join_outside_base_raises(tmp_path, monkeypatch):
+    base = tmp_path
+    monkeypatch.setattr("src.web.main.BASE_PHOTOS_DIR", base)
+    with pytest.raises(ValueError):
+        _safe_join(base, "../etc/passwd")
+
+
+@pytest.mark.asyncio
+async def test_health_returns_expected_keys():
+    data = await health()
+    assert data["status"] == "ok"
+    assert "exiftool" in data

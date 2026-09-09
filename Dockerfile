@@ -1,44 +1,36 @@
 # ─────────────────────────────────────────────────────────────────────
 # ExifTool GUI — Docker Image
-# Base: python:3.12-slim + ExifTool + Tkinter via X11 forwarding
+# Now serves a FastAPI-based web UI instead of a Tkinter desktop via noVNC.
+# Base: python:3.12-slim + ExifTool CLI + FastAPI + Uvicorn
 # ─────────────────────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 LABEL maintainer="Sturmi77" \
-      description="ExifTool GUI — EXIF date & location editor" \
+      description="ExifTool GUI — EXIF date & location editor (web UI)" \
       version="0.1.0"
 
-# System dependencies:
-#   exiftool        – Perl-based EXIF tool
-#   tk + python3-tk – Tkinter GUI
-#   libimage-exiftool-perl – ExifTool Perl library
-#   xauth, x11-apps – X11 forwarding support
+# System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libimage-exiftool-perl \
-        python3-tk \
-        tk \
-        xauth \
-        libx11-6 \
-        libxext6 \
-        libxrender1 \
-        libxtst6 \
         fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 # Install Python dependencies first (layer cache)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-web.txt .
+RUN pip install --no-cache-dir -r requirements-web.txt
 
-# Copy application source
+# Copy application source (core logic + web modules)
 COPY src/ ./src/
+COPY templates ./templates
+COPY static ./static
 
-# Non-root user for security
-RUN useradd -m -u 1000 exifuser
+# UID 1026 = Michael auf Synology DS923+
+RUN useradd -m -u 1026 -g users exifuser
 USER exifuser
 
-# X11 display (overridable via env / docker-compose)
-ENV DISPLAY=:0
+# FastAPI app entrypoint
+ENV PYTHONUNBUFFERED=1
 
-CMD ["python", "src/main.py"]
+CMD ["uvicorn", "src.web.main:app", "--host", "0.0.0.0", "--port", "8000"]

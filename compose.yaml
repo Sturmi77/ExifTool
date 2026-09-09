@@ -1,66 +1,62 @@
-# ExifTool GUI — Dockhand-optimized Compose Stack
+# ExifTool GUI — Dockhand-optimized Compose Stack (Web UI Version)
 #
 # Deployment via Dockhand GitOps:
 #   1. Repo unter Settings > Git hinterlegen
-#   2. Stack erstellen > "From Git" > compose.yaml wird automatisch erkannt
+#   2. Stack erstellen > "From Git" → compose.yaml wird automatisch erkannt
 #   3. Variablen als "Config Set" hinterlegen (siehe .env.example)
-#   4. Optional: Webhook für Auto-Sync bei Push aktivieren
+#   4. Optional: Webhook fuer Auto-Sync bei Push aktivieren
 #
-# GUI-Zugriff via Browser (noVNC):
-#   http://<synology-ip>:6080
+# GUI-Zugriff via Browser (FastAPI Web UI):
+#   http://<synology-ip>:6080/
 #
-# STACK_DATA_DIR und PHOTOS_DIR müssen auf dem Host existieren:
-#   mkdir -p /volume1/docker/exiftool-gui/data
+# Mehrere Foto-Verzeichnisse:
+#   Bis zu 3 Host-Pfade koennen ueber PHOTOS_DIR_1 / _2 / _3 eingebunden
+#   werden. Sie erscheinen im GUI-Ordner-Browser als Unterordner unter /photos.
+#   Nicht benoetigte Variablen einfach leer lassen oder weglassen —
+#   der Default-Wert verhindert einen Compose-Fehler.
 
 services:
 
-  # noVNC: virtueller X11-Display, GUI im Browser erreichbar (headless)
-  novnc:
-    image: theasp/novnc:latest
-    container_name: exiftool-novnc
-    restart: unless-stopped
-    environment:
-      - DISPLAY_WIDTH=1280
-      - DISPLAY_HEIGHT=800
-      - RUN_XTERM=no
-    ports:
-      - "${NOVNC_PORT:-6080}:8080"
-    networks:
-      - exiftool-net
-
   exiftool-gui:
-    image: sturmi77/exiftool-gui:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Fixe Minor-Version — Dockhand erkennt automatisch wenn eine neue
+    # Minor-Version (z.B. 0.2) auf Docker Hub erscheint.
+    image: sturmi77/exiftool-gui:0.1
     container_name: exiftool-gui
     restart: unless-stopped
-    depends_on:
-      - novnc
 
     environment:
-      # DISPLAY zeigt auf den noVNC-Container (kein lokaler X11 nötig)
-      - DISPLAY=novnc:0
+      # Basisverzeichnis im Container — wird NICHT geaendert
+      - PHOTOS_DIR=/photos
+
+    ports:
+      # Host-Port → Container-Port 8000 (FastAPI)
+      - "${WEB_PORT:-6080}:8000"
 
     volumes:
-      - ${PHOTOS_DIR:-/volume1/photos}:/photos:rw
-      - ${STACK_DATA_DIR:-/volume1/docker/exiftool-gui/data}:/home/exifuser/.config/exiftool-gui
+      # ── Foto-Verzeichnisse ──────────────────────────────────────────────
+      # Jeder Host-Pfad wird als Unterordner unter /photos eingebunden.
+      # PHOTOS_DIR_1 ist Pflicht; _2 und _3 sind optional.
+      # Nicht gesetzte Variablen fallen auf PHOTOS_DIR_1 zurueck —
+      # das erzeugt zwar Duplikate, aber keinen Fehler.
+      - ${PHOTOS_DIR_1:-/volume1/homes/Michael}:/photos/dir1:rw
+      - ${PHOTOS_DIR_2:-${PHOTOS_DIR_1:-/volume1/homes/Michael}}:/photos/dir2:rw
+      - ${PHOTOS_DIR_3:-${PHOTOS_DIR_1:-/volume1/homes/Michael}}:/photos/dir3:rw
 
-    networks:
-      - exiftool-net
+      # App-Konfiguration als named volume
+      - exiftool_config:/home/exifuser/.config/exiftool-gui
 
     labels:
       - "dockhand.stack=exiftool-gui"
-      - "dockhand.description=EXIF date & GPS location editor GUI"
+      - "dockhand.description=EXIF date & location editor (Web UI)"
       - "dockhand.update.vulnerability-criteria=critical"
 
     healthcheck:
-      test: ["CMD", "python", "-c", "import tkinter"]
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 60s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 25s
 
-networks:
-  exiftool-net:
-    driver: bridge
+volumes:
+  exiftool_config:

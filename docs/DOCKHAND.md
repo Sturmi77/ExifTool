@@ -2,7 +2,6 @@
 
 Dockhand ist ein selbst-gehostetes Docker-Management-Tool mit GitOps-Unterstützung,
 Vulnerability-Scanning und Webhook-basiertem Auto-Sync.
-Dieses Dokument beschreibt das Deployment der ExifTool GUI via Dockhand.
 
 > Weitere Infos zu Dockhand: https://dockhand.pro
 
@@ -12,151 +11,107 @@ Dieses Dokument beschreibt das Deployment der ExifTool GUI via Dockhand.
 
 - Dockhand installiert und erreichbar
 - Docker Engine 20.20+ auf dem Zielhost
-- X11-Display auf dem Host (GUI-App)
 - Git-Zugang zum Repository (HTTPS oder SSH)
+- Kein X11-Desktop nötig — GUI läuft via noVNC im Browser
+- Kein manuelles Anlegen von Verzeichnissen nötig (außer PHOTOS_DIR)
 
 ---
 
-## X11 einrichten (einmalig)
+## GUI-Zugriff via Browser
 
-Da ExifTool GUI eine Desktop-Anwendung ist, muss der X11-Socket des Hosts
-in den Container freigegeben werden:
+Die App läuft als Tkinter-Desktop-App in einem noVNC-Container.
+Kein X11-Display auf dem Host notwendig.
 
-```bash
-# Einmalig auf dem Host ausführen (bei jedem Reboot wiederholen oder in /etc/rc.local):
-xhost +local:docker
 ```
-
-Für einen permanenten Eintrag in die Autostart-Konfiguration:
-```bash
-echo 'xhost +local:docker' >> ~/.profile
+http://<synology-ip>:6080
 ```
 
 ---
 
-## Datenverzeichnis anlegen
+## Volumes
 
-```bash
-mkdir -p /opt/dockhand/stacks/exiftool-gui/data
+| Volume | Typ | Beschreibung |
+|---|---|---|
+| `${PHOTOS_DIR}:/photos` | Bind Mount | Deine Fotos vom Host |
+| `exiftool_config` | Named Volume | App-Konfiguration, von Docker automatisch verwaltet |
+
+Das Named Volume `exiftool_config` wird von Docker **automatisch angelegt** —
+kein `mkdir` notwendig. Es liegt auf Synology unter:
 ```
-
-> Dockhand verwendet **matching paths**: Der Volume-Pfad im Container muss
-> identisch mit dem Host-Pfad sein. Daher absoluter Pfad statt relativer.
+/volume1/@docker/volumes/exiftool_config/_data
+```
 
 ---
 
-## Deployment via GitOps (empfohlen)
+## Deployment via GitOps
 
 ### 1. Repository in Dockhand hinterlegen
 
 1. Dockhand öffnen → **Settings → Git**
 2. Repository hinzufügen:
    - URL: `https://github.com/Sturmi77/ExifTool.git`
-   - Branch: `development` (für aktive Entwicklung) oder `main` (stabil)
-   - Auth: HTTPS ohne Token (public repo) oder SSH-Key
+   - Branch: `main`
 
 ### 2. Stack erstellen
 
 1. **Stacks → Create → From Git**
 2. Repository und Branch wählen
 3. Compose-Datei: `compose.yaml` (wird automatisch erkannt)
-4. Stack-Name: `exiftool-gui`
+4. Stack-Name: `exiftool`
 
-### 3. Config Set anlegen (statt .env-Datei)
+### 3. Config Set anlegen
 
-In Dockhand unter **Settings → Config Sets** ein neues Config Set erstellen:
+In Dockhand unter **Settings → Config Sets** — nur zwei Variablen nötig:
 
 ```
-DISPLAY=:0
-PHOTOS_DIR=/mnt/nas/fotos
-STACK_DATA_DIR=/opt/dockhand/stacks/exiftool-gui/data
+NOVNC_PORT=6080
+PHOTOS_DIR=/volume1/photos
 ```
 
-Das Config Set beim Stack-Deployment auswählen — so bleiben keine Secrets im Git-Repo.
+> `STACK_DATA_DIR` wird nicht mehr benötigt!
 
-### 4. Webhook für Auto-Sync einrichten (optional)
+### 4. Webhook für Auto-Sync (optional)
 
 1. Dockhand → Stack → **Webhook-URL kopieren**
 2. GitHub → Repository → **Settings → Webhooks → Add webhook**
-3. Payload URL: Dockhand Webhook-URL einfügen
+3. Payload URL: Dockhand Webhook-URL
 4. Content type: `application/json`
 5. Trigger: **Just the push event**
 
-Ab jetzt deployed Dockhand automatisch bei jedem Push auf den konfigurierten Branch.
-
 ---
 
-## Manuelles Deployment (ohne GitOps)
+## Manuelles Deployment
 
 ```bash
-# Repository klonen
 git clone https://github.com/Sturmi77/ExifTool.git
 cd ExifTool
-
-# Umgebungsvariablen setzen
 cp .env.example .env
-nano .env   # PHOTOS_DIR und STACK_DATA_DIR anpassen
-
-# Datenverzeichnis erstellen
-mkdir -p /opt/dockhand/stacks/exiftool-gui/data
-
-# X11 freigeben
-xhost +local:docker
-
-# Stack starten
+# PHOTOS_DIR in .env anpassen
 docker compose up --build
 ```
-
-Oder in Dockhand: **Stacks → Create → Editor** → Inhalt von `compose.yaml` einfügen.
-
----
-
-## Vulnerability Scanning
-
-Dockhand scannt das Image automatisch mit Grype/Trivy.
-Das Label in `compose.yaml` steuert die Update-Strategie:
-
-```yaml
-labels:
-  - "dockhand.update.vulnerability-criteria=critical"
-```
-
-Mögliche Werte: `never`, `any`, `critical-or-high`, `critical`, `more-than-current`
-
----
-
-## Fotos-Verzeichnis konfigurieren
-
-Der Container mountet `PHOTOS_DIR` als `/photos`.
-Innerhalb der GUI kann dieser Pfad als Startordner gewählt werden.
-
-| Setup | PHOTOS_DIR-Wert |
-|---|---|
-| Linux Desktop | `/home/user/Pictures` |
-| Synology NAS | `/volume1/photos` |
-| NAS-Mount auf Linux | `/mnt/nas/fotos` |
-| Benutzerdefiniert | Beliebiger absoluter Pfad |
 
 ---
 
 ## Troubleshooting
 
-### GUI startet nicht (X11-Fehler)
+### Bind mount failed
+Nur `PHOTOS_DIR` ist ein Bind Mount — dieser Pfad muss auf dem Host existieren.
+Alle anderen Volumes werden von Docker automatisch verwaltet.
+
 ```bash
-# Prüfen ob xhost gesetzt ist:
-xhost
-# Falls nicht:
-xhost +local:docker
-# DISPLAY-Variable prüfen:
-echo $DISPLAY
+# Prüfen ob Foto-Pfad existiert:
+ls /volume1/photos
 ```
 
-### Volume-Pfad-Fehler in Dockhand
+### GUI startet nicht (noVNC leer)
 ```bash
-# Verzeichnis muss auf dem Host existieren:
-mkdir -p /opt/dockhand/stacks/exiftool-gui/data
-# Berechtigungen:
-chown 1000:1000 /opt/dockhand/stacks/exiftool-gui/data
+docker logs exiftool-gui
+docker logs exiftool-novnc
+```
+
+### Named Volume Inhalt einsehen
+```bash
+ls /volume1/@docker/volumes/exiftool_config/_data
 ```
 
 ### Image neu bauen nach Code-Änderungen
