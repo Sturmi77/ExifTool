@@ -29,6 +29,18 @@ for _i in range(1, 4):
     if _val:
         DIR_LABELS[f"dir{_i}"] = Path(_val).name
 
+def _photo_root_labels() -> dict[str, str]:
+    """Wurzel-Namen für den Lückenfinder: Env-Labels oder gemountete dir1–3."""
+    if DIR_LABELS:
+        return DIR_LABELS
+    labels: dict[str, str] = {}
+    if BASE_PHOTOS_DIR.is_dir():
+        for child in sorted(BASE_PHOTOS_DIR.iterdir()):
+            if child.is_dir() and not child.name.startswith("."):
+                labels[child.name] = child.name
+    return labels
+
+
 exiftool = ExifToolWrapper()
 gap_index = GapIndex(default_db_path())
 gap_scanner = GapScanner(gap_index, exiftool, BASE_PHOTOS_DIR)
@@ -45,7 +57,7 @@ async def _lifespan(_app: FastAPI):
 app = FastAPI(title="ExifTool GUI (Web)", lifespan=_lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-app.include_router(create_gaps_router(lambda: gap_scanner, templates, DIR_LABELS))
+app.include_router(create_gaps_router(lambda: gap_scanner, templates, _photo_root_labels))
 
 
 @app.get("/health", include_in_schema=False)
@@ -98,7 +110,7 @@ def _breadcrumb(subdir: str) -> list:
   for part in parts:
     accumulated = f"{accumulated}/{part}" if accumulated else part
     # Echten Anzeigenamen verwenden falls vorhanden (z.B. dir1 -> photo)
-    label = DIR_LABELS.get(part, part)
+    label = _photo_root_labels().get(part, part)
     crumbs.append({"label": label, "path": accumulated})
   return crumbs
 
@@ -171,7 +183,7 @@ async def index(
       "subdir": subdir,
       "folder": str(folder),
       "subdirs": subdirs,
-      "dir_labels": DIR_LABELS,
+      "dir_labels": _photo_root_labels(),
       "breadcrumb": breadcrumb,
       "parent_subdir": parent_subdir,
       "files": rel_files,

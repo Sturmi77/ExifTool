@@ -27,7 +27,11 @@ COPY templates ./templates
 COPY static ./static
 
 # UID 1026 = Michael auf Synology DS923+
-RUN useradd -m -u 1026 -g users exifuser
+# Config dir must exist in the image so a fresh named volume inherits ownership
+# (otherwise the mount is root-owned and GapIndex cannot create gaps.sqlite).
+RUN useradd -m -u 1026 -g users exifuser \
+    && mkdir -p /home/exifuser/.config/exiftool-gui \
+    && chown -R exifuser:users /home/exifuser/.config
 USER exifuser
 
 # FastAPI app entrypoint

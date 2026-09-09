@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import tempfile
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -10,12 +11,26 @@ from pathlib import Path
 from typing import Iterable, Optional
 
 
+def _ensure_writable_dir(path: Path) -> Path:
+    """Return *path* if it is writable, otherwise a temp fallback."""
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryFile(dir=path):
+            return path
+    except OSError:
+        fallback = Path(tempfile.gettempdir()) / "exiftool-gui"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
 def default_db_path() -> Path:
     """Store the index next to app config, never inside the photo tree."""
     base = os.environ.get("EXIFTOOL_CONFIG_DIR")
     if base:
-        return Path(base) / "gaps.sqlite"
-    return Path.home() / ".config" / "exiftool-gui" / "gaps.sqlite"
+        preferred = Path(base)
+    else:
+        preferred = Path.home() / ".config" / "exiftool-gui"
+    return _ensure_writable_dir(preferred) / "gaps.sqlite"
 
 
 def utc_now() -> str:
@@ -42,6 +57,11 @@ def root_of(relpath: str) -> str:
     if not relpath:
         return ""
     return relpath.split("/", 1)[0]
+
+
+def _like_escape(value: str) -> str:
+    """Escape LIKE wildcards so folder names with _ or % match literally."""
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def editor_parts(file_relpath: str) -> tuple[str, str]:
@@ -395,7 +415,18 @@ class GapIndex:
         folders = [dict(r) for r in rows]
         if query is None:
             return folders
-        return [f for f in folders if self._folder_matches(f, query)]
+        match_counts = None
+        selected_gaps = sum(
+            [
+                query.missing_exif,
+                query.missing_date,
+                query.missing_gps,
+                query.missing_make,
+            ]
+        )
+        if selected_gaps > 1 and (query.min_count or query.min_pct):
+            match_counts = self._matching_counts_by_folder(query)
+        return [f for f in folders if self._folder_matches(f, query, match_counts)]
 
     def query_files(self, query: GapQuery) -> tuple[list[dict], int]:
         where, params = self._file_where(query)
@@ -416,14 +447,39 @@ class GapIndex:
             ).fetchall()
         return [dict(r) for r in rows], int(total)
 
-    def iter_files(self, query: GapQuery):
+    def iter_files(self, query: GapQuery, batch_size: int = 500):
+        where, params = self._file_where(query)
+        offset = 0
+        while True:
+            with self._lock:
+                rows = self._conn.execute(
+                    f"""
+                    SELECT * FROM files{where}
+                    ORDER BY relpath
+                    LIMIT ? OFFSET ?
+                    """,
+                    [*params, batch_size, offset],
+                ).fetchall()
+            if not rows:
+                break
+            for row in rows:
+                yield dict(row)
+            if len(rows) < batch_size:
+                break
+            offset += batch_size
+
+    def _matching_counts_by_folder(self, query: GapQuery) -> dict[str, int]:
+        """Count files matching the file query, rolled up to ancestor folders."""
         where, params = self._file_where(query)
         with self._lock:
             rows = self._conn.execute(
-                f"SELECT * FROM files{where} ORDER BY relpath", params
+                f"SELECT relpath FROM files{where}", params
             ).fetchall()
+        counts: dict[str, int] = {}
         for row in rows:
-            yield dict(row)
+            for folder in folder_ancestors(row["relpath"]):
+                counts[folder] = counts.get(folder, 0) + 1
+        return counts
 
     def _file_where(self, q: GapQuery) -> tuple[str, list]:
         clauses: list[str] = []
@@ -440,16 +496,17 @@ class GapIndex:
             clauses.append("root = ?")
             params.append(q.root)
         if q.prefix:
-            clauses.append("relpath LIKE ?")
-            params.append(q.prefix.rstrip("/") + "/%")
+            prefix = q.prefix.rstrip("/")
+            clauses.append("relpath LIKE ? ESCAPE '\\'")
+            params.append(_like_escape(prefix) + "/%")
         if q.writable == "ro":
             clauses.append("writable = 0")
         elif q.writable == "rw":
             clauses.append("writable = 1")
         if q.ext:
             ext = q.ext.lower().lstrip(".")
-            clauses.append("lower(relpath) LIKE ?")
-            params.append(f"%.{ext}")
+            clauses.append("lower(relpath) LIKE ? ESCAPE '\\'")
+            params.append("%." + _like_escape(ext))
         if q.date_from or q.date_to:
             if q.date_field == "file":
                 if q.date_from:
@@ -469,7 +526,11 @@ class GapIndex:
         return where, params
 
     @staticmethod
-    def _folder_matches(folder: dict, q: GapQuery) -> bool:
+    def _folder_matches(
+        folder: dict,
+        q: GapQuery,
+        match_counts: dict[str, int] | None = None,
+    ) -> bool:
         relpath = folder["relpath"]
         if folder["photo_count"] <= 0 and relpath != "":
             return False
@@ -490,7 +551,11 @@ class GapIndex:
         if q.writable == "rw" and not folder["is_writable"]:
             return False
 
-        if q.missing_exif:
+        if match_counts is not None:
+            count = match_counts.get(relpath, 0)
+            n = folder["photo_count"] or 0
+            pct = round(100.0 * count / n, 1) if n else 0.0
+        elif q.missing_exif:
             count, pct = folder["missing_exif_count"], folder["missing_exif_pct"]
         elif q.missing_date:
             count, pct = folder["missing_date_count"], folder["missing_date_pct"]

@@ -170,3 +170,46 @@ def test_list_folders_respects_prefix_and_threshold(tmp_path):
     ro = {f["relpath"] for f in index.list_folders(GapQuery(writable="ro"))}
     assert ro == {"dir1/sub"}
     index.close()
+
+
+def test_prefix_like_is_literal(tmp_path):
+    index = GapIndex(tmp_path / "gaps.sqlite")
+    index.upsert_files([
+        _row("dir1/Trip_2024/a.jpg"),
+        _row("dir1/TripX2024/b.jpg"),
+    ])
+    rows, total = index.query_files(GapQuery(prefix="dir1/Trip_2024"))
+    assert total == 1
+    assert rows[0]["relpath"] == "dir1/Trip_2024/a.jpg"
+    index.close()
+
+
+def test_folder_threshold_uses_and_of_selected_gaps(tmp_path):
+    index = GapIndex(tmp_path / "gaps.sqlite")
+    index.upsert_files([
+        _row("dir1/a.jpg", has_date=0, has_gps=1),
+        _row("dir1/b.jpg", has_date=0, has_gps=1),
+        _row("dir1/c.jpg", has_date=1, has_gps=0),
+        _row("dir1/d.jpg", has_date=1, has_gps=0),
+        _row("dir1/e.jpg", has_date=0, has_gps=0),
+    ])
+    index.rebuild_folders({"": True, "dir1": True})
+    too_high = {
+        f["relpath"]
+        for f in index.list_folders(
+            GapQuery(missing_date=True, missing_gps=True, min_count=2)
+        )
+    }
+    assert "dir1" not in too_high
+    enough = {
+        f["relpath"]
+        for f in index.list_folders(
+            GapQuery(missing_date=True, missing_gps=True, min_count=1)
+        )
+    }
+def test_iter_files_yields_in_batches(tmp_path):
+    index = GapIndex(tmp_path / "gaps.sqlite")
+    index.upsert_files([_row(f"dir1/{i:03d}.jpg") for i in range(5)])
+    paths = [row["relpath"] for row in index.iter_files(GapQuery(), batch_size=2)]
+    assert paths == [f"dir1/{i:03d}.jpg" for i in range(5)]
+    index.close()

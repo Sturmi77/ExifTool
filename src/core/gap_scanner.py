@@ -53,7 +53,10 @@ def row_from_meta(
         size=size,
         has_exif=bool(meta.get("ExifByteOrder")),
         has_date=bool(dto or created),
-        has_gps=meta.get("GPSLatitude") not in (None, ""),
+        has_gps=(
+            meta.get("GPSLatitude") not in (None, "")
+            and meta.get("GPSLongitude") not in (None, "")
+        ),
         has_make=bool(meta.get("Make")),
         datetime=dto or created,
         file_mtime=mtime,
@@ -220,7 +223,7 @@ class GapScanner:
                 continue
             mtime = stat.st_mtime
             size = stat.st_size
-            writable = writable_for(abs_path.parent)
+            writable = writable_for(abs_path.parent) and os.access(abs_path, os.W_OK)
             fingerprint = known.get(relpath)
             if fingerprint and fingerprint[0] == mtime and fingerprint[1] == size:
                 if int(writable) != fingerprint[2]:
@@ -243,9 +246,11 @@ class GapScanner:
             pending.clear()
 
         # Ensure every walked folder (even empty) is in writable_cache
-        if photos_dir.is_dir():
+        if not self._cancel.is_set() and photos_dir.is_dir():
             writable_for(photos_dir)
             for dirpath, dirnames, _ in os.walk(photos_dir):
+                if self._cancel.is_set():
+                    break
                 dirnames[:] = [d for d in dirnames if not d.startswith(".")]
                 writable_for(Path(dirpath))
 

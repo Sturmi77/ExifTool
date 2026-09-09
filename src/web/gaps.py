@@ -139,9 +139,12 @@ def _enrich_folders(
 def create_gaps_router(
     get_scanner: ScannerFactory,
     templates: Jinja2Templates,
-    dir_labels: dict[str, str],
+    dir_labels: dict[str, str] | Callable[[], dict[str, str]],
 ) -> APIRouter:
     router = APIRouter(prefix="/gaps", tags=["gaps"])
+
+    def _labels() -> dict[str, str]:
+        return dir_labels() if callable(dir_labels) else dir_labels
 
     def _query(
         missing_exif: str = "",
@@ -200,14 +203,14 @@ def create_gaps_router(
             context={
                 "query": query,
                 "files": _enrich_files(files),
-                "folders": _enrich_folders(folders, dir_labels, query),
+                "folders": _enrich_folders(folders, _labels(), query),
                 "total": total,
                 "pages": pages,
                 "job": scanner.status(),
                 "filter_qs": _filter_qs(query),
                 "prev_qs": _filter_qs(query, page=max(1, query.page - 1)),
                 "next_qs": _filter_qs(query, page=min(pages, query.page + 1)),
-                "dir_labels": dir_labels,
+                "dir_labels": _labels(),
             },
         )
 

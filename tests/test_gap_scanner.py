@@ -50,6 +50,23 @@ def test_row_from_meta_gap_flags():
     assert row.has_make is True
     assert row.writable is False
 
+    partial = row_from_meta(
+        "dir1/b.jpg",
+        mtime=1.0,
+        size=10,
+        writable=True,
+        meta={"GPSLatitude": 48.4},
+    )
+    assert partial.has_gps is False
+    complete = row_from_meta(
+        "dir1/c.jpg",
+        mtime=1.0,
+        size=10,
+        writable=True,
+        meta={"GPSLatitude": 48.4, "GPSLongitude": 16.2},
+    )
+    assert complete.has_gps is True
+
 
 def test_scan_indexes_files_and_skips_unchanged(tmp_path):
     photos = tmp_path / "photos"
