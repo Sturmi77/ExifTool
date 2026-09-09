@@ -113,7 +113,44 @@ in-place. Siehe `src/core/exiftool.py` für Details.
 
 ---
 
-## 6. Desktop-GUI (Legacy)
+## 6. Lückenfinder
+
+Über die Navigation **Lückenfinder** (oder direkt `/gaps`) findest du Dateien und Ordner, denen Metadaten fehlen – ohne 100.000 Thumbnails zu laden.
+
+### Scan
+
+1. **Scan starten** indexiert alle unterstützten Bilder unter `PHOTOS_DIR` (bzw. `dir1`–`dir3` im Container).
+2. Der Fortschritt zeigt erledigt/gesamt und eine grobe Restzeit (ETA). **Abbrechen** stoppt den Lauf; bereits gelesene Dateien bleiben im Index.
+3. Ein zweiter Scan überspringt unveränderte Dateien (`Pfad + mtime + Größe`). Schreibbarkeit wird trotzdem neu geprüft.
+4. Der erste Lauf über ~100.000 Dateien dauert grob **15–60 Minuten** (NAS langsamer, SSD schneller). Rescans danach Minuten.
+5. Der Index liegt **nicht** im Fotoordner, sondern unter `~/.config/exiftool-gui/gaps.sqlite` bzw. `EXIFTOOL_CONFIG_DIR` (Docker-Volume `exiftool_config`).
+
+### Filter
+
+| Filter | Wirkung |
+|---|---|
+| Lücken | Kein EXIF-Block, kein Datum, kein GPS, keine Kamera – kombinierbar (AND). |
+| Pfad | Wurzel `dir1`–`dir3` und/oder Ordnerpräfix. |
+| Typ | Dateiendung, z. B. `jpg`. |
+| Datum | EXIF-Aufnahmedatum **oder** Dateisystem-mtime, von/bis. |
+| Schreibbarkeit | alle / nur beschreibbar / nur lesen. |
+| Ordner-Schwelle | Mindestanzahl oder Mindestanteil betroffener Dateien. |
+
+### Treffer
+
+- Ordnerbaum mit Badges wie `42/120 ohne GPS` und Schloss **nur lesen**.
+- Paginierte Dateiliste (keine Thumbnail-Grid über den ganzen Bestand).
+- **Im Editor** öffnet den bestehenden Editor (`/?subdir=…&selected=…`).
+- Beschreibbare Dateien im **selben Ordner** können per Checkbox markiert und mit **Auswahl im Editor öffnen** übernommen werden. Read-only-Treffer haben keine Checkbox.
+- **CSV exportieren** schreibt die gefilterte Liste inkl. Spalte `writable`.
+
+### Read-only
+
+Scan (Lesen) ist erlaubt, Schreiben nicht. Im Editor sind Apply, Drehen und Auswahl deaktiviert, sobald der Ordner nur lesbar ist. `/apply` und `/rotate` lehnen solche Ordner ab.
+
+---
+
+## 7. Desktop-GUI (Legacy)
 
 Die ursprüngliche Tkinter-GUI wird weiter unterstützt, ist aber nicht mehr
 Standard. Für die Bedienung siehe die frühere Dokumentation oder ältere Tags.

@@ -31,3 +31,9 @@ Thumbs.db
 # Test artifacts
 .pytest_cache/
 *.log
+tests/_tmp/
+
+# Vendored ExifTool / jExifToolGUI (local only, not part of the app)
+exiftool-13.52_64/
+jExifToolGUI-*/
+jExifToolGUI*.zip

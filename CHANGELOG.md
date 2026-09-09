@@ -2,6 +2,17 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden in dieser Datei festgehalten.
 
+## [0.3.0] – 2026-09-09
+
+### Added
+- EXIF-Lückenfinder (`/gaps`): Hintergrund-Scan über den Foto-Bestand, SQLite-Index (WAL), Filter nach Lücken-Typ, Datum, Pfad, Dateityp und Schreibbarkeit (Issue #10).
+- Ordneraggregation mit Lücken-Quote, paginierte Trefferliste, CSV-Export inkl. Spalte `writable`.
+- Read-only-Erkennung pro Ordner (NAS, Docker `:ro`, Dateirechte) mit Schloss-Badge und deaktivierten Schreibaktionen.
+- Deep-Link vom Lückenfinder in den Editor inkl. Mehrfachauswahl beschreibbarer Dateien.
+
+### Changed
+- ExifTool läuft über einen persistenten PyExifTool-Prozess (`-stay_open`, `-n`, `-fast2`) statt eines Subprocess pro Datei.
+
 ## [0.2.0] – 2026-04-16
 
 ### Added

@@ -3,12 +3,17 @@ from pathlib import Path
 from typing import List, Optional
 import urllib.parse
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from src.core.exiftool import ExifToolWrapper
+from src.core.gap_index import GapIndex, default_db_path
+from src.core.gap_scanner import GapScanner
+from src.core.utils import IMAGE_EXTS
+from src.core.writable import is_writable_dir
+from src.web.gaps import create_gaps_router
 
 import io
 import os
@@ -25,25 +30,33 @@ for _i in range(1, 4):
         DIR_LABELS[f"dir{_i}"] = Path(_val).name
 
 exiftool = ExifToolWrapper()
+gap_index = GapIndex(default_db_path())
+gap_scanner = GapScanner(gap_index, exiftool, BASE_PHOTOS_DIR)
 
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI):
     yield
+    gap_scanner.cancel()
+    gap_index.close()
     exiftool.close()
 
 
 app = FastAPI(title="ExifTool GUI (Web)", lifespan=_lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
-IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".heic", ".raw",
-              ".cr2", ".nef", ".arw", ".dng", ".orf", ".rw2"}
+app.include_router(create_gaps_router(lambda: gap_scanner, templates, DIR_LABELS))
 
 
 @app.get("/health", include_in_schema=False)
 async def health() -> dict:
-  return {"status": "ok", "exiftool": exiftool.is_available()}
+  job = gap_index.latest_job() or {}
+  return {
+    "status": "ok",
+    "exiftool": exiftool.is_available(),
+    "scan": job.get("status"),
+    "scan_running": gap_scanner.is_running(),
+  }
 
 
 def _safe_join(base: Path, sub: str) -> Path:
@@ -96,6 +109,7 @@ async def index(
   subdir: str = "",
   selected: Optional[str] = None,
   msg: str = "",
+  checked: List[str] = Query(default=[]),
 ):
   base = BASE_PHOTOS_DIR
   try:
@@ -131,6 +145,13 @@ async def index(
       preview_meta = {"error": str(e)}
 
   rel_files = [f.name for f in files]
+  folder_writable = is_writable_dir(folder)
+  checked_names = []
+  if folder_writable:
+    wanted = set(checked)
+    if selected:
+      wanted.add(selected)
+    checked_names = [name for name in rel_files if name in wanted]
 
   current_index = 0
   prev_file = None
@@ -160,6 +181,8 @@ async def index(
       "prev_file": prev_file,
       "next_file": next_file,
       "message": msg,
+      "folder_writable": folder_writable,
+      "checked_names": checked_names,
     },
   )
 
@@ -215,6 +238,12 @@ async def rotate(
   if not path.is_file() or not str(path).startswith(str(folder)):
     return JSONResponse({"error": "not found"}, status_code=404)
 
+  if not is_writable_dir(folder):
+    return JSONResponse(
+      {"error": "Ordner ist nur lesbar – Datei kann nicht gedreht werden."},
+      status_code=403,
+    )
+
   suffix = path.suffix.lower()
   allowed = {".jpg", ".jpeg", ".jpe", ".jfif", ".heic", ".heif"}
   if suffix not in allowed:
@@ -256,6 +285,13 @@ async def apply_metadata(
     url = request.url_for("index")
     return RedirectResponse(
       url=f"{url}?subdir={subdir}&msg=Keine Dateien ausgewahlt.", status_code=303
+    )
+
+  if not is_writable_dir(folder):
+    url = request.url_for("index")
+    return RedirectResponse(
+      url=f"{url}?subdir={subdir}&msg=Ordner ist nur lesbar – Metadaten koennen nicht geschrieben werden.",
+      status_code=303,
     )
 
   files = []

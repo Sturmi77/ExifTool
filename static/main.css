@@ -9,6 +9,33 @@ header {
   padding: 0.4rem 1.5rem 0.3rem;
 }
 
+.page-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-nav {
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.app-nav a {
+  color: #0b63ce;
+  text-decoration: none;
+}
+
+.app-nav a:hover {
+  text-decoration: underline;
+}
+
+.app-nav a.current {
+  font-weight: 600;
+  color: #222;
+}
+
 h1 {
   margin: 0;
   font-size: 1.1rem;
@@ -138,6 +165,12 @@ h1 .subtitle {
   border: 1px solid #ddd;
 }
 
+.selected-count.count-readonly {
+  background: #fde8e8;
+  color: #8b1a1a;
+  border: 1px solid #f0b6b6;
+}
+
 .edit-panel {
   margin-top: 0.75rem;
   border-top: 1px solid #eee;
@@ -229,4 +262,126 @@ button:disabled {
 .error {
   color: #b3261e;
   font-size: 0.9rem;
+}
+
+.scan-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 1.5rem;
+}
+
+.scan-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.scan-progress progress {
+  flex: 1;
+  max-width: 320px;
+  height: 0.7rem;
+}
+
+.gap-filters {
+  margin: 0.5rem 1.5rem 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.gap-filters fieldset {
+  border: 1px solid #dde3f0;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.gap-filters legend {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.gap-filters label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+}
+
+.gaps-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 2fr;
+  gap: 1rem;
+  padding: 0.5rem 1.5rem 1.5rem;
+}
+
+@media (max-width: 900px) {
+  .gaps-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.folder-tree {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.folder-tree li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0;
+}
+
+.folder-tree a.folder-editor {
+  margin-left: 0.15rem;
+  font-size: 0.8rem;
+}
+
+.muted {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.badge {
+  display: inline-block;
+  background: #fff4e5;
+  color: #8a5a00;
+  border: 1px solid #f0d5a8;
+  border-radius: 999px;
+  padding: 0.05rem 0.45rem;
+  font-size: 0.75rem;
+}
+
+.badge-ro {
+  background: #fde8e8;
+  color: #8b1a1a;
+  border-color: #f0b6b6;
+}
+
+.pager {
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.button-link {
+  display: inline-block;
+  border-radius: 4px;
+  border: 1px solid #0b63ce;
+  background: #fff;
+  color: #0b63ce;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.button-link:hover {
+  background: #eef3ff;
 }

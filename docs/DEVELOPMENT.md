@@ -62,17 +62,21 @@ PHOTOS_DIR=/pfad/zu/deinen/fotos \
 ```
 src/
 ├── web/
-│   ├── main.py          # FastAPI-App, Routing & Templating
-│   └── ...              # spätere Erweiterungen (APIs, Auth, etc.)
+│   ├── main.py          # FastAPI-App, Editor-Routing & Templating
+│   └── gaps.py          # Lückenfinder: HTML, JSON, CSV, Scan-API
 └── core/
-    ├── exiftool.py      # Subprocess-Wrapper um ExifTool CLI
-    └── utils.py         # Datum-Parsing, DMS-Konverter
+    ├── exiftool.py      # Persistenter PyExifTool-Wrapper (stay_open)
+    ├── gap_index.py     # SQLite-WAL-Index (files/folders/jobs)
+    ├── gap_scanner.py   # Hintergrund-Walk + Batch-Reads
+    ├── writable.py      # Read-only-Erkennung pro Ordner
+    └── utils.py         # Datum-Parsing, DMS, IMAGE_EXTS
 ```
 
 Datenfluss (Web):
 
 ```
 Browser ▷ FastAPI ▷ ExifToolWrapper ▷ Dateien unter PHOTOS_DIR
+                 └▷ GapScanner / SQLite ▷ /gaps
 ```
 
 ---
@@ -96,7 +100,8 @@ Wir verwenden SemVer für Versionen:
 
 - `v0.1.0`: erster Web-Release
 - `v0.1.x`: Bugfixes
-- `v0.2.0`: neue Features
+- `v0.2.0`: Dateiliste / Auswahl
+- `v0.3.0`: EXIF-Lückenfinder
 
 Release-Ablauf:
 

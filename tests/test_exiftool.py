@@ -47,6 +47,17 @@ def test_normalize_tags_strips_leading_dash():
     ]
 
 
+def test_write_metadata_rejects_read_only(wrapper, tmp_path, monkeypatch):
+    from PIL import Image
+
+    path = tmp_path / "a.jpg"
+    Image.new("RGB", (8, 8), color="red").save(path, "JPEG")
+    monkeypatch.setattr("src.core.exiftool.is_writable_dir", lambda p: False)
+    with pytest.raises(PermissionError, match="nur lesbar"):
+        wrapper.write_metadata([str(path)], date="2024:08:15 12:30:00")
+    assert wrapper._helper is None
+
+
 def test_read_metadata_batch_empty_does_not_start_process(wrapper):
     assert wrapper.read_metadata_batch([]) == []
     assert wrapper._helper is None
@@ -120,3 +131,4 @@ async def test_health_returns_expected_keys():
     data = await health()
     assert data["status"] == "ok"
     assert "exiftool" in data
+    assert "scan_running" in data

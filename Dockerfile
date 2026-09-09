@@ -7,7 +7,7 @@ FROM python:3.12-slim
 
 LABEL maintainer="Sturmi77" \
       description="ExifTool GUI — EXIF date & location editor (web UI)" \
-      version="0.1.0"
+      version="0.3.0"
 
 # System dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \

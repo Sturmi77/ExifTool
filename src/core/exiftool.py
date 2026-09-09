@@ -5,10 +5,13 @@ import atexit
 import json
 import shutil
 import threading
+from pathlib import Path
 from typing import Optional
 
 from exiftool import ExifToolHelper
 from exiftool.exceptions import ExifToolExecuteError
+
+from src.core.writable import is_writable_dir
 
 # Tags fetched for the preview panel (leading dash optional)
 PREVIEW_TAGS = [
@@ -20,6 +23,17 @@ PREVIEW_TAGS = [
 ]
 
 BASIC_TAGS = ["DateTimeOriginal", "GPSLatitude", "GPSLongitude"]
+
+# Tags for the gap indexer. ExifByteOrder is present only when an EXIF IFD exists.
+SCAN_TAGS = [
+    "DateTimeOriginal",
+    "CreateDate",
+    "GPSLatitude",
+    "GPSLongitude",
+    "Make",
+    "MIMEType",
+    "ExifByteOrder",
+]
 
 # Stay-open defaults: numeric values, skip MakerNotes. No -G so existing
 # unprefixed keys (DateTimeOriginal, GPSLatitude, …) stay unchanged.
@@ -112,6 +126,12 @@ class ExifToolWrapper:
         """
         if not files:
             return
+
+        for path in files:
+            if not is_writable_dir(Path(path).parent):
+                raise PermissionError(
+                    "Ordner ist nur lesbar – Metadaten können nicht geschrieben werden."
+                )
 
         args = ["-overwrite_original_in_place", "-preserve"]
 
