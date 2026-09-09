@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List, Optional
 import urllib.parse
@@ -23,11 +24,18 @@ for _i in range(1, 4):
     if _val:
         DIR_LABELS[f"dir{_i}"] = Path(_val).name
 
-app = FastAPI(title="ExifTool GUI (Web)")
+exiftool = ExifToolWrapper()
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI):
+    yield
+    exiftool.close()
+
+
+app = FastAPI(title="ExifTool GUI (Web)", lifespan=_lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
-exiftool = ExifToolWrapper()
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".tiff", ".tif", ".heic", ".raw",
               ".cr2", ".nef", ".arw", ".dng", ".orf", ".rw2"}

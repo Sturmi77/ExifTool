@@ -3,7 +3,7 @@ import asyncio
 
 import pytest
 from src.core.utils import parse_exif_date, format_exif_date, decimal_to_dms
-from src.core.exiftool import ExifToolWrapper
+from src.core.exiftool import BASIC_TAGS, ExifToolWrapper, _normalize_tags
 from src.web.main import _safe_join, health, BASE_PHOTOS_DIR
 
 
@@ -33,12 +33,70 @@ def test_decimal_to_dms():
     assert round(s, 1) == 3.6
 
 
-def test_exiftool_available():
-    wrapper = ExifToolWrapper()
-    # This test passes only if exiftool is installed on the system
-    # Skip gracefully if not available
+@pytest.fixture
+def wrapper():
+    tool = ExifToolWrapper()
+    yield tool
+    tool.close()
+
+
+def test_normalize_tags_strips_leading_dash():
+    assert _normalize_tags(["-DateTimeOriginal", "GPSLatitude"]) == [
+        "DateTimeOriginal",
+        "GPSLatitude",
+    ]
+
+
+def test_read_metadata_batch_empty_does_not_start_process(wrapper):
+    assert wrapper.read_metadata_batch([]) == []
+    assert wrapper._helper is None
+
+
+def test_read_metadata_batch_uses_helper(wrapper, monkeypatch):
+    captured = {}
+
+    class FakeHelper:
+        def get_tags(self, files, tags, params=None):
+            captured["files"] = files
+            captured["tags"] = tags
+            return [
+                {"SourceFile": "a.jpg", "DateTimeOriginal": "2024:01:01 00:00:00"},
+                {"SourceFile": "b.jpg"},
+            ]
+
+    monkeypatch.setattr(wrapper, "_get_helper", lambda: FakeHelper())
+    rows = wrapper.read_metadata_batch(["a.jpg", "b.jpg"], ["-DateTimeOriginal"])
+    assert captured["files"] == ["a.jpg", "b.jpg"]
+    assert captured["tags"] == ["DateTimeOriginal"]
+    assert len(rows) == 2
+    assert rows[0]["DateTimeOriginal"] == "2024:01:01 00:00:00"
+
+
+def test_exiftool_available(wrapper):
     if not wrapper.is_available():
         pytest.skip("exiftool not installed on this system")
+
+
+def test_read_metadata_batch_roundtrip(wrapper, tmp_path):
+    if not wrapper.is_available():
+        pytest.skip("exiftool not installed on this system")
+
+    from PIL import Image
+
+    paths = []
+    for name in ("one.jpg", "two.jpg"):
+        path = tmp_path / name
+        Image.new("RGB", (16, 16), color="red").save(path, "JPEG")
+        paths.append(str(path))
+
+    wrapper.write_metadata(paths, date="2024:08:15 12:30:00", lat="48.4", lon="16.2")
+    rows = wrapper.read_metadata_batch(paths, BASIC_TAGS)
+    by_name = {row["SourceFile"].replace("\\", "/").split("/")[-1]: row for row in rows}
+    assert set(by_name) == {"one.jpg", "two.jpg"}
+    for row in by_name.values():
+        assert row.get("DateTimeOriginal") == "2024:08:15 12:30:00"
+        assert abs(float(row["GPSLatitude"]) - 48.4) < 0.001
+        assert abs(float(row["GPSLongitude"]) - 16.2) < 0.001
 
 
 def test_safe_join_inside_base(tmp_path, monkeypatch):

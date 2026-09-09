@@ -1,10 +1,16 @@
-"""Wrapper around the ExifTool CLI binary."""
+"""Wrapper around the ExifTool CLI via a persistent PyExifTool process."""
+from __future__ import annotations
+
+import atexit
 import json
-import subprocess
 import shutil
+import threading
 from typing import Optional
 
-# Tags fetched for the preview panel
+from exiftool import ExifToolHelper
+from exiftool.exceptions import ExifToolExecuteError
+
+# Tags fetched for the preview panel (leading dash optional)
 PREVIEW_TAGS = [
     "-FileName", "-DateTimeOriginal", "-CreateDate", "-ModifyDate",
     "-GPSLatitude", "-GPSLongitude", "-GPSAltitude",
@@ -13,31 +19,85 @@ PREVIEW_TAGS = [
     "-ImageSize", "-FileSize", "-MIMEType",
 ]
 
+BASIC_TAGS = ["DateTimeOriginal", "GPSLatitude", "GPSLongitude"]
+
+# Stay-open defaults: numeric values, skip MakerNotes. No -G so existing
+# unprefixed keys (DateTimeOriginal, GPSLatitude, …) stay unchanged.
+COMMON_ARGS = ["-n", "-fast2"]
+
+
+def _normalize_tags(tags: list[str]) -> list[str]:
+    """Strip a leading dash so callers can pass '-DateTimeOriginal' or the name."""
+    return [t[1:] if t.startswith("-") else t for t in tags]
+
 
 class ExifToolWrapper:
-    """Calls the system exiftool binary via subprocess."""
+    """One stay_open ExifTool process for reads and writes."""
 
     BINARY = "exiftool"
+
+    def __init__(self) -> None:
+        self._helper: ExifToolHelper | None = None
+        self._lock = threading.Lock()
+        atexit.register(self.close)
 
     def is_available(self) -> bool:
         """Check whether exiftool is installed and in PATH."""
         return shutil.which(self.BINARY) is not None
 
+    def _get_helper(self) -> ExifToolHelper:
+        if self._helper is None or not self._helper.running:
+            self._helper = ExifToolHelper(
+                executable=self.BINARY,
+                common_args=list(COMMON_ARGS),
+                auto_start=True,
+                check_execute=True,
+            )
+        return self._helper
+
+    def close(self) -> None:
+        """Stop the stay_open process if it is running."""
+        with self._lock:
+            helper = self._helper
+            self._helper = None
+            if helper is None:
+                return
+            try:
+                helper.terminate()
+            except Exception:
+                pass
+
+    def read_metadata_batch(
+        self,
+        paths: list[str],
+        tags: list[str] | None = None,
+    ) -> list[dict]:
+        """Return selected tags for many files in one ExifTool round-trip."""
+        if not paths:
+            return []
+        tag_names = _normalize_tags(tags if tags is not None else BASIC_TAGS)
+        with self._lock:
+            helper = self._get_helper()
+            try:
+                return helper.get_tags(paths, tag_names)
+            except ExifToolExecuteError as exc:
+                stdout = getattr(exc, "stdout", None) or helper.last_stdout
+                if stdout:
+                    data = json.loads(stdout)
+                    if isinstance(data, list):
+                        return data
+                stderr = getattr(exc, "stderr", None) or helper.last_stderr or str(exc)
+                raise RuntimeError(f"ExifTool error:\n{stderr}") from exc
+
     def read_metadata(self, filepath: str) -> dict:
         """Return basic EXIF tags (date + GPS) for a single file."""
-        result = subprocess.run(
-            [self.BINARY, "-j", "-DateTimeOriginal", "-GPSLatitude", "-GPSLongitude", filepath],
-            capture_output=True, text=True, check=True
-        )
-        data = json.loads(result.stdout)
-        return data[0] if data else {}
+        rows = self.read_metadata_batch([filepath], BASIC_TAGS)
+        return rows[0] if rows else {}
 
     def read_metadata_extended(self, filepath: str) -> dict:
         """Return extended EXIF tags for the preview panel."""
-        args = [self.BINARY, "-j"] + PREVIEW_TAGS + [filepath]
-        result = subprocess.run(args, capture_output=True, text=True, check=True)
-        data = json.loads(result.stdout)
-        return data[0] if data else {}
+        rows = self.read_metadata_batch([filepath], PREVIEW_TAGS)
+        return rows[0] if rows else {}
 
     def write_metadata(
         self,
@@ -53,7 +113,7 @@ class ExifToolWrapper:
         if not files:
             return
 
-        args = [self.BINARY, "-overwrite_original_in_place", "-preserve"]
+        args = ["-overwrite_original_in_place", "-preserve"]
 
         if date:
             args += [
@@ -70,6 +130,10 @@ class ExifToolWrapper:
 
         args += files
 
-        result = subprocess.run(args, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError(f"ExifTool error:\n{result.stderr}")
+        with self._lock:
+            helper = self._get_helper()
+            try:
+                helper.execute(*args)
+            except ExifToolExecuteError as exc:
+                stderr = getattr(exc, "stderr", None) or helper.last_stderr or str(exc)
+                raise RuntimeError(f"ExifTool error:\n{stderr}") from exc
