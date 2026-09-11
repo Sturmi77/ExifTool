@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>EXIF-Lückenfinder</title>
+  <link rel="stylesheet" href="/static/main.css" />
+  <script src="/static/gaps.js" defer></script>
+</head>
+<body>
+  <header class="page-header">
+    <h1>ExifTool GUI <span class="subtitle">&#x2014; Lückenfinder</span></h1>
+    <nav class="app-nav">
+      <a href="/">Editor</a>
+      <a href="/gaps" class="current">Lückenfinder</a>
+    </nav>
+  </header>
+
+  <section class="scan-bar">
+    <button type="button" id="scan-start">Scan starten</button>
+    <button type="button" id="scan-cancel" disabled>Abbrechen</button>
+    <div class="scan-progress">
+      <progress id="scan-progress" max="{{ job.total or 1 }}" value="{{ job.done or 0 }}"></progress>
+      <span id="scan-label">
+        {% if job.running %}Scan läuft: {{ job.done }} / {{ job.total }}{% if job.eta_seconds %} – ca. {{ (job.eta_seconds / 60) | round(0, 'ceil') | int }} Min.{% endif %}
+        {% elif job.status == "done" %}Fertig: {{ job.done }} Dateien, {{ job.skipped or 0 }} übersprungen
+        {% elif job.status == "cancelled" %}Abgebrochen
+        {% elif job.status == "error" %}Scan fehlgeschlagen
+        {% else %}Noch kein Scan{% endif %}
+      </span>
+    </div>
+  </section>
+  <p id="scan-error" class="error" hidden></p>
+
+  <form method="get" action="/gaps" class="gap-filters" id="gap-filters">
+    <fieldset>
+      <legend>Lücken</legend>
+      <label><input type="checkbox" name="missing_exif" value="1" {% if query.missing_exif %}checked{% endif %} /> Kein EXIF-Block</label>
+      <label><input type="checkbox" name="missing_date" value="1" {% if query.missing_date %}checked{% endif %} /> Kein Datum</label>
+      <label><input type="checkbox" name="missing_gps" value="1" {% if query.missing_gps %}checked{% endif %} /> Kein GPS</label>
+      <label><input type="checkbox" name="missing_make" value="1" {% if query.missing_make %}checked{% endif %} /> Keine Kamera</label>
+    </fieldset>
+    <fieldset>
+      <legend>Pfad</legend>
+      <label>Wurzel
+        <select name="root">
+          <option value="" {% if not query.root %}selected{% endif %}>alle</option>
+          {% for key, label in dir_labels.items() %}
+            <option value="{{ key }}" {% if query.root == key %}selected{% endif %}>{{ label }} ({{ key }})</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Ordner
+        <input type="text" name="prefix" value="{{ query.prefix | e }}" placeholder="dir1/urlaub" />
+      </label>
+      <label>Typ
+        <input type="text" name="ext" value="{{ query.ext | e }}" placeholder="jpg" size="6" />
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Datum &amp; Schreibbarkeit</legend>
+      <label>
+        <select name="date_field">
+          <option value="exif" {% if query.date_field == "exif" %}selected{% endif %}>EXIF-Datum</option>
+          <option value="file" {% if query.date_field == "file" %}selected{% endif %}>Dateisystem</option>
+        </select>
+      </label>
+      <label>von <input type="date" name="date_from" value="{{ query.date_from | e }}" /></label>
+      <label>bis <input type="date" name="date_to" value="{{ query.date_to | e }}" /></label>
+      <label>Schreibbarkeit
+        <select name="writable">
+          <option value="all" {% if query.writable == "all" %}selected{% endif %}>alle</option>
+          <option value="rw" {% if query.writable == "rw" %}selected{% endif %}>nur beschreibbar</option>
+          <option value="ro" {% if query.writable == "ro" %}selected{% endif %}>nur lesen</option>
+        </select>
+      </label>
+    </fieldset>
+    <fieldset>
+      <legend>Ordner-Schwelle</legend>
+      <label>mind. Dateien <input type="number" name="min_count" min="0" value="{{ query.min_count }}" /></label>
+      <label>mind. % <input type="number" name="min_pct" min="0" max="100" step="1" value="{{ query.min_pct }}" /></label>
+      <button type="submit">Filtern</button>
+      <a class="button-link" href="/gaps">Zurücksetzen</a>
+      <a class="button-link" href="/gaps/export.csv?{{ filter_qs }}">CSV exportieren</a>
+    </fieldset>
+  </form>
+
+  <main class="gaps-layout">
+    <section class="files folder-pane">
+      <h2>Ordner ({{ folders|length }})</h2>
+      {% if folders %}
+        <ul class="folder-tree">
+          {% for folder in folders %}
+            <li style="padding-left: {{ folder.depth }}rem">
+              <span>&#x1F4C1;</span>
+              <a href="{{ folder.href }}">{{ folder.label }}</a>
+              <span class="muted">{{ folder.photo_count }}</span>
+              {% if folder.show_date and folder.missing_date_count %}<span class="badge">{{ folder.missing_date_count }}/{{ folder.photo_count }} ohne Datum</span>{% endif %}
+              {% if folder.show_gps and folder.missing_gps_count %}<span class="badge">{{ folder.missing_gps_count }}/{{ folder.photo_count }} ohne GPS</span>{% endif %}
+              {% if folder.show_exif and folder.missing_exif_count %}<span class="badge">{{ folder.missing_exif_count }}/{{ folder.photo_count }} ohne EXIF</span>{% endif %}
+              {% if folder.show_make and folder.missing_make_count %}<span class="badge">{{ folder.missing_make_count }}/{{ folder.photo_count }} ohne Kamera</span>{% endif %}
+              {% if not folder.is_writable %}<span class="badge badge-ro">&#x1F512; nur lesen</span>{% endif %}
+              {% if folder.relpath %}<a class="folder-editor" href="{{ folder.editor_href }}">Im Editor</a>{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p>Keine Ordner im Index. Starte einen Scan.</p>
+      {% endif %}
+    </section>
+
+    <section class="files">
+      <h2>Dateien ({{ total }})</h2>
+      {% if files %}
+        <div class="select-all-row">
+          <button type="button" id="open-selected" class="button-link">Auswahl im Editor öffnen</button>
+          <span class="hint">Nur beschreibbare Dateien, und nur aus demselben Ordner.</span>
+        </div>
+        <div class="file-table-scroll">
+          <table class="file-table">
+            <thead>
+              <tr>
+                <th>&#x2714;</th>
+                <th>Datei</th>
+                <th>Datum</th>
+                <th>GPS</th>
+                <th>Lücken</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in files %}
+                <tr>
+                  <td>
+                    {% if f.writable %}
+                      <input type="checkbox" class="gap-select"
+                        data-subdir="{{ f.editor_subdir | e }}"
+                        data-name="{{ f.editor_name | e }}" />
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ f.relpath }}
+                    {% if not f.writable %}<span class="badge badge-ro">&#x1F512; nur lesen</span>{% endif %}
+                  </td>
+                  <td>{{ f.datetime or "—" }}</td>
+                  <td>
+                    {% if f.lat is not none and f.lon is not none %}{{ "%.4f"|format(f.lat) }}, {{ "%.4f"|format(f.lon) }}{% else %}—{% endif %}
+                  </td>
+                  <td>
+                    {% if not f.has_exif %}<span class="badge">EXIF</span>{% endif %}
+                    {% if not f.has_date %}<span class="badge">Datum</span>{% endif %}
+                    {% if not f.has_gps %}<span class="badge">GPS</span>{% endif %}
+                    {% if not f.has_make %}<span class="badge">Kamera</span>{% endif %}
+                  </td>
+                  <td>
+                    <a href="/?subdir={{ f.editor_subdir | urlencode }}&amp;selected={{ f.editor_name | urlencode }}">Im Editor</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% if pages > 1 %}
+          <p class="pager">
+            {% if query.page > 1 %}<a href="/gaps?{{ prev_qs }}">Zurück</a>{% endif %}
+            Seite {{ query.page }} / {{ pages }}
+            {% if query.page < pages %}<a href="/gaps?{{ next_qs }}">Weiter</a>{% endif %}
+          </p>
+        {% endif %}
+      {% else %}
+        <p>Keine Dateien für diese Filter.</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

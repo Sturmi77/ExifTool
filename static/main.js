@@ -2,11 +2,26 @@ let mapInstance = null;
 let markerInstance = null;
 
 // ── Issue #6: Ausgewaehlte Dateien zaehlen ─────────────────────────────────────
+function folderIsWritable() {
+  const form = document.getElementById('apply-form');
+  return !form || form.dataset.folderWritable !== '0';
+}
+
 function updateSelectedCount() {
   const checkboxes = document.querySelectorAll('input[name="selected_files"]');
   const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
   const span = document.getElementById('selected-count');
   const btn  = document.getElementById('apply-btn');
+  const writable = folderIsWritable();
+
+  if (!writable) {
+    if (span) {
+      span.textContent = 'Ordner nur lesen – Schreiben deaktiviert';
+      span.className = 'selected-count count-readonly';
+    }
+    if (btn) btn.disabled = true;
+    return;
+  }
 
   if (span) {
     if (checked === 0) {
@@ -147,6 +162,7 @@ function initMap() {
 }
 
 async function rotatePhoto(direction) {
+  if (!folderIsWritable()) return;
   const fileInput = document.getElementById("preview-file");
   const subdirInput = document.getElementById("hidden-subdir");
   const img = document.getElementById("photo-preview");

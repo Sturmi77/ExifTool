@@ -19,14 +19,18 @@ services:
 
   exiftool-gui:
     # Fixe Minor-Version — Dockhand erkennt automatisch wenn eine neue
-    # Minor-Version (z.B. 0.2) auf Docker Hub erscheint.
-    image: sturmi77/exiftool-gui:0.1
+    # Minor-Version (z.B. 0.3) auf Docker Hub erscheint.
+    image: sturmi77/exiftool-gui:0.3
     container_name: exiftool-gui
     restart: unless-stopped
 
     environment:
       # Basisverzeichnis im Container — wird NICHT geaendert
       - PHOTOS_DIR=/photos
+      # Host-Pfade auch als Env, damit die UI echte Wurzel-Namen (dir1–3) anzeigt
+      - PHOTOS_DIR_1=${PHOTOS_DIR_1:-}
+      - PHOTOS_DIR_2=${PHOTOS_DIR_2:-}
+      - PHOTOS_DIR_3=${PHOTOS_DIR_3:-}
 
     ports:
       # Host-Port → Container-Port 8000 (FastAPI)

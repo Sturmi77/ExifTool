@@ -1,6 +1,11 @@
 """Utility helpers."""
 from datetime import datetime
 
+IMAGE_EXTS = {
+    ".jpg", ".jpeg", ".png", ".tiff", ".tif", ".heic", ".raw",
+    ".cr2", ".nef", ".arw", ".dng", ".orf", ".rw2",
+}
+
 
 def parse_exif_date(date_str: str) -> datetime | None:
     """Parse EXIF date string 'YYYY:MM:DD HH:MM:SS' into a datetime object."""

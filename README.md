@@ -18,6 +18,7 @@
 | 📅 EXIF-Datum setzen | Datum/Zeit via `datetime-local` Eingabe, automatischer EXIF-String (`YYYY:MM:DD HH:MM:SS`) |
 | 🗺 Karte & Ortssuche | OpenStreetMap-Karte, Marker per Klick verschiebbar, Ortssuche (Nominatim) mit Übernahme in Lat/Lon |
 | 📍 GPS schreiben | GPS-Koordinaten für mehrere ausgewählte Dateien in einem Rutsch setzen |
+| 🔍 Lückenfinder | `/gaps` findet Dateien und Ordner ohne EXIF, Datum, GPS oder Kamera – inkl. Read-only-Badge und CSV-Export |
 | 🐳 Docker-optimiert | Schlankes Image auf Basis `python:3.12-slim`, ideal für NAS / Home-Server |
 
 Die frühere Desktop-GUI auf Basis Tkinter existiert weiterhin im Code, der Fokus liegt aber auf der Weboberfläche.
@@ -30,7 +31,7 @@ Die frühere Desktop-GUI auf Basis Tkinter existiert weiterhin im Code, der Foku
 - Docker / Docker Compose (für Deployment empfohlen)
 - Optional für lokale Entwicklung: Python 3.12+
 
-ExifTool wird **nicht** gebundled, sondern als externes CLI-Tool über `subprocess` aufgerufen.
+ExifTool wird **nicht** gebundled. Die Web-UI spricht es über PyExifTool (`-stay_open`) an.
 
 ---
 
@@ -82,6 +83,7 @@ Details siehe [docs/USAGE.md](docs/USAGE.md).
    - Marker in der Karte verschieben.
 5. **Auf Auswahl anwenden**: Checkboxen in der Dateiliste setzen und Änderungen schreiben.
 6. **Drehen**: Rechts in der Vorschau mit „Links drehen“ / „Rechts drehen“ die Datei physisch rotieren.
+7. **Lückenfinder**: Über die Navigation zu `/gaps`, Scan starten, Filter setzen, Treffer im Editor öffnen.
 
 ---
 
@@ -138,9 +140,9 @@ verwenden, solange die Python-Abhängigkeiten (`tkintermapview`, `tkcalendar`, `
 
 Geplante SemVer-Versionierung:
 
-- `v0.1.0` – erster öffentlicher Web-Release (aktueller Stand)
-- `v0.1.x` – Bugfixes und kleinere Verbesserungen
-- `v0.2.0` – größere Feature-Updates
+- `v0.3.0` – EXIF-Lückenfinder (aktueller Stand)
+- `v0.2.0` – Dateiliste, Auswahlzähler, URL-Encoding
+- `v0.1.0` – erster öffentlicher Web-Release
 
 Releases werden über Git-Tags und GitHub Releases verwaltet (siehe [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)).
 

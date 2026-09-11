@@ -31,8 +31,12 @@
 </head>
 <body>
   <!-- Kompakter Header: nur Titel + aktuelles Verzeichnis in einer Zeile -->
-  <header>
+  <header class="page-header">
     <h1>ExifTool GUI <span class="subtitle">&#x2014; <code>{{ base_dir }}</code></span></h1>
+    <nav class="app-nav">
+      <a href="/" class="current">Editor</a>
+      <a href="/gaps">Lückenfinder</a>
+    </nav>
   </header>
 
   {% if message %}
@@ -52,7 +56,14 @@
             <span>{{ crumb.label }}</span>
           {% endif %}
         {% endfor %}
+        {% if not folder_writable %}
+          <span class="badge badge-ro" title="Schreiben deaktiviert">&#x1F512; nur lesen</span>
+        {% endif %}
       </nav>
+
+      {% if not folder_writable %}
+        <p class="error">Dieser Ordner ist nur lesbar – Metadaten und Drehen sind deaktiviert.</p>
+      {% endif %}
 
       <!-- Up link -->
       {% if parent_subdir is not none %}
@@ -82,11 +93,11 @@
           <h3>Dateien</h3>
           <span class="file-count">({{ files|length }})</span>
         </div>
-        <form method="post" action="/apply" id="apply-form">
+        <form method="post" action="/apply" id="apply-form" data-folder-writable="{{ 1 if folder_writable else 0 }}">
           <input type="hidden" name="subdir" value="{{ subdir | e }}" id="hidden-subdir" />
 
           <div class="select-all-row">
-            <label><input type="checkbox" id="select-all" /> Alle auswaehlen</label>
+            <label><input type="checkbox" id="select-all" {% if not folder_writable %}disabled{% endif %} /> Alle auswaehlen</label>
           </div>
 
           <!-- Scrollbare Dateiliste -->
@@ -97,7 +108,8 @@
                 {% for f in files %}
                   <tr class="file-row {% if f == selected %}selected{% endif %}">
                     <td><input type="checkbox" name="selected_files" value="{{ f | e }}"
-                      {% if f == selected %}checked{% endif %} /></td>
+                      {% if f in checked_names %}checked{% endif %}
+                      {% if not folder_writable %}disabled{% endif %} /></td>
                     <td>
                       <button type="button"
                         onclick="navigateSelected('{{ subdir | e }}', '{{ f | e }}')"
@@ -112,29 +124,31 @@
           <section class="edit-panel">
             <h2>Metadaten bearbeiten</h2>
 
-            <span id="selected-count" class="selected-count count-empty">Keine Dateien ausgewaehlt</span>
+            <span id="selected-count" class="selected-count {% if folder_writable %}count-empty{% else %}count-readonly{% endif %}">
+              {% if folder_writable %}Keine Dateien ausgewaehlt{% else %}Ordner nur lesen – Schreiben deaktiviert{% endif %}
+            </span>
 
             <div class="field-row">
               <label for="dt-picker">Datum &amp; Zeit:</label>
-              <input type="datetime-local" id="dt-picker" />
+              <input type="datetime-local" id="dt-picker" {% if not folder_writable %}disabled{% endif %} />
               <input type="hidden" name="exif_datetime" id="exif-datetime-hidden" />
               <span class="hint">Wird automatisch in EXIF-Format umgewandelt.</span>
             </div>
             <div class="field-row">
               <label for="lat">Breitengrad (Lat):</label>
-              <input type="text" id="lat" name="lat" placeholder="48.4010" />
+              <input type="text" id="lat" name="lat" placeholder="48.4010" {% if not folder_writable %}disabled{% endif %} />
               <label for="lon">Laengengrad (Lon):</label>
-              <input type="text" id="lon" name="lon" placeholder="16.1680" />
+              <input type="text" id="lon" name="lon" placeholder="16.1680" {% if not folder_writable %}disabled{% endif %} />
             </div>
             <div class="field-row">
               <label for="place-search">Ort suchen:</label>
-              <input type="text" id="place-search" placeholder="Adresse, Ort, POI..." />
-              <button type="button" onclick="searchPlace()">Suchen</button>
+              <input type="text" id="place-search" placeholder="Adresse, Ort, POI..." {% if not folder_writable %}disabled{% endif %} />
+              <button type="button" onclick="searchPlace()" {% if not folder_writable %}disabled{% endif %}>Suchen</button>
             </div>
             <div id="map"></div>
             <p class="hint">Karte: Klick setzt Lat/Lon, Mausrad zum Zoomen oder Ortssuche verwenden.</p>
             <div class="field-row actions">
-              <button type="submit" id="apply-btn">Auf ausgew. Dateien anwenden</button>
+              <button type="submit" id="apply-btn" {% if not folder_writable %}disabled{% endif %}>Auf ausgew. Dateien anwenden</button>
             </div>
           </section>
         </form>
@@ -153,8 +167,8 @@
                src="/thumb?subdir={{ subdir | urlencode }}&amp;file={{ preview_file | urlencode }}"
                alt="Vorschau" class="thumb" />
           <div class="rotate-buttons">
-            <button type="button" onclick="rotatePhoto('ccw')">&#x21BA; Links drehen</button>
-            <button type="button" onclick="rotatePhoto('cw')">&#x21BB; Rechts drehen</button>
+            <button type="button" onclick="rotatePhoto('ccw')" {% if not folder_writable %}disabled{% endif %}>&#x21BA; Links drehen</button>
+            <button type="button" onclick="rotatePhoto('cw')" {% if not folder_writable %}disabled{% endif %}>&#x21BB; Rechts drehen</button>
           </div>
           <div class="nav-buttons">
             {% if prev_file %}

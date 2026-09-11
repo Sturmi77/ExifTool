@@ -6,3 +6,6 @@ python-multipart>=0.0.9
 
 # Image thumbnail & rotation
 Pillow>=10.0
+
+# Persistent ExifTool process (-stay_open) for batch reads/writes
+PyExifTool>=0.5.6
